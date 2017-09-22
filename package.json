@@ -10,13 +10,17 @@
     "build:addon.xml": "node_modules/.bin/hbsrender -c package.json -t templates/addon.xml > build/webinterface.shadowPlayer/addon.xml",
     "build:readme.md": "node_modules/.bin/hbsrender -c package.json -t templates/README.md > build/webinterface.shadowPlayer/README.md"
   },
-  "version": "0.0.2",
-  "description": "An HTML5 video player that mirrors the video currently playing in Kodi.",
+  "version": "0.0.3",
+  "summary": "An external video player that syncronizes its playback with Kodi.",
+  "description": "An HTML5 video player that mirrors the video currently playing in Kodi to any device on your network with a modern web browser.",
   "keywords": [
     "Kodi",
     "XBMC"
   ],
   "name": "shadowPlayer",
+  "screenshot": {
+    "url": "https://bitbucket.org/bailus/webinterface.shadowplayer/src/master/assets/screenshot.jpg"
+  },
   "repository": {
     "type": "git",
     "url": "https://bitbucket.org/bailus/webinterface.shadowPlayer"
