@@ -6,68 +6,101 @@ const eventListenerPreventDefault = f => e => {
 }
 
 
-const loadElems = (document) => {
+let loadElems = (document) => {
 	const elems = {
 		container: document.createElement('section'),
 		video: document.createElement('video'),
-		info: document.createElement('div'),
-		infoText: document.createElement('div'),
-		infoTextLineA: document.createElement('div'),
-		infoTextLineB: document.createElement('div'),
-		title: document.createElement('span'),
-		year: document.createElement('span'),
-		img: document.createElement('img'),
-		clock: document.createElement('div'),
-		clockTime: document.createElement('span'),
-		finishTime: document.createElement('span'),
-		show: document.createElement('show'),
-		artist: document.createElement('span'),
-		album: document.createElement('span'),
-		productionCode: document.createElement('span')
+		clock: {
+			container: document.createElement('div'),
+			clockTime: document.createElement('span'),
+			finishTime: document.createElement('span')
+		},
+		now: {
+			container: document.createElement('div'),
+			text: document.createElement('div'),
+			textLineA: document.createElement('div'),
+			textLineB: document.createElement('div'),
+			title: document.createElement('span'),
+			year: document.createElement('span'),
+			img: document.createElement('img'),
+			show: document.createElement('show'),
+			artist: document.createElement('span'),
+			album: document.createElement('span'),
+			channel: document.createElement('span'),
+			productionCode: document.createElement('span')
+		},
+		next: {
+			container: document.createElement('div'),
+			text: document.createElement('div'),
+			textLineA: document.createElement('div'),
+			textLineB: document.createElement('div'),
+			title: document.createElement('span'),
+			endTime: document.createElement('span')
+		}
 	}
 
 	elems.container.id = 'videoPlayer'
+
+	elems.clock.container.className = 'clock'
+	elems.clock.clockTime.className = 'clockTime'
+	elems.clock.finishTime.className = 'finishTime'
+
 	elems.video.autoplay = true
-	elems.info.className = 'info'
-	elems.infoText.className = 'infoText'
-	elems.infoTextLineA.className = 'line1'
-	elems.infoTextLineB.className = 'line2'
-	elems.title.className = 'title'
-	elems.year.className = 'year'
-	elems.img.className = 'thumbnail'
-	elems.clock.className = 'clock'
-	elems.clockTime.className = 'clockTime'
-	elems.finishTime.className = 'finishTime'
-	elems.show.className = 'show'
-	elems.artist.className = 'artist'
-	elems.album.className = 'album'
-	elems.productionCode.className = 'productionCode'
 
+	elems.now.container.className = 'playingNow'
+	elems.now.text.className = 'text'
+	elems.now.textLineA.className = 'line1'
+	elems.now.textLineB.className = 'line2'
+	elems.now.title.className = 'title'
+	elems.now.year.className = 'year'
+	elems.now.img.className = 'thumbnail'
+	elems.now.show.className = 'show'
+	elems.now.artist.className = 'artist'
+	elems.now.album.className = 'album'
+	elems.now.productionCode.className = 'productionCode'
 
-	elems.clock.append(elems.clockTime)
-	elems.clock.append(elems.finishTime)
+	elems.next.container.className = 'playingNext'
+	elems.next.text.className = 'text'
+	elems.next.textLineA.className = 'line1'
+	elems.next.textLineB.className = 'line2'
+	elems.next.endTime.className = 'endTime'
+	elems.next.title.className = 'title'
 
-	elems.infoTextLineA.append(elems.show)
-	elems.infoTextLineA.append(elems.album)
-	elems.infoTextLineA.append(elems.year)
+	elems.clock.container.append(elems.clock.clockTime)
+	elems.clock.container.append(elems.clock.finishTime)
 
-	elems.infoTextLineB.append(elems.productionCode)
-	elems.infoTextLineB.append(elems.artist)
-	elems.infoTextLineB.append(elems.title)
+	elems.now.textLineA.append(elems.now.show)
+	elems.now.textLineA.append(elems.now.album)
+	elems.now.textLineA.append(elems.now.year)
+	elems.now.textLineA.append(elems.now.channel)
 
-	elems.infoText.append(elems.infoTextLineA)
-	elems.infoText.append(elems.infoTextLineB)
+	elems.now.textLineB.append(elems.now.productionCode)
+	elems.now.textLineB.append(elems.now.artist)
+	elems.now.textLineB.append(elems.now.title)
 
-	elems.info.append(elems.img)
-	elems.info.append(elems.infoText)
+	elems.now.text.append(elems.now.textLineA)
+	elems.now.text.append(elems.now.textLineB)
+
+	elems.now.container.append(elems.now.img)
+	elems.now.container.append(elems.now.text)
+
+	elems.next.textLineA.append(elems.next.title)
+	elems.next.textLineB.append(elems.next.endTime)
+
+	elems.next.text.append(elems.next.textLineA)
+	elems.next.text.append(elems.next.textLineB)
+
+	elems.next.container.append(elems.next.text)
 
 	elems.container.append(elems.video)
-	elems.container.append(elems.clock)
-	elems.container.append(elems.info)
+	elems.container.append(elems.clock.container)
+	elems.container.append(elems.now.container)
+	elems.container.append(elems.next.container)
 
 
 	return elems
 }
+
 
 
 const init = (elems) => (xbmc) => {
@@ -77,6 +110,26 @@ const init = (elems) => (xbmc) => {
 
 	const prefix = a => b => [ a, b ].join('')
 	const prefixPlayer = prefix('Player.')
+	const leadingZero = x => (x && (x < 10 ? '0'+x : ''+x))
+	const toSeconds = labels => label => {
+		const hh = parseInt(labels[`${ label }(hh)`])
+		const mm = 60*hh + parseInt(labels[`${ label }(mm)`])
+		const ss = 60*mm + parseInt(labels[`${ label }(ss)`])
+		return ss
+	}
+
+	const getTime = () => xbmc.get({
+		'method': 'XBMC.GetInfoLabels',
+		'params': {
+			'labels': ([  //  http://kodi.wiki/view/InfoLabels
+				'Time(hh)', 'Time(mm)', 'Time(ss)',
+
+			]).map(prefixPlayer)
+		}
+	}).then(labels => {
+		labels['Player.Time'] = toSeconds(labels)('Player.Time')
+		return labels;
+	})
 
 	const getLabels = () => xbmc.get({
 		'method': 'XBMC.GetInfoLabels',
@@ -84,8 +137,7 @@ const init = (elems) => (xbmc) => {
 			'labels': ([  //  http://kodi.wiki/view/InfoLabels
 				'Title',
 				'Folderpath', 'Filename', 'Filenameandpath',
-				'Duration(hh)', 'Duration(mm)', 'Duration(ss)', 
-				'Time(hh)', 'Time(mm)', 'Time(ss)',
+				'Duration', 'Time',
 				'Art(thumb)',
 				'FinishTime'
 
@@ -93,51 +145,19 @@ const init = (elems) => (xbmc) => {
 				'MusicPlayer.Year', 'VideoPlayer.Year',
 				'MusicPlayer.Album', 'MusicPlayer.Artist',
 				'VideoPlayer.TVShowTitle', 'VideoPlayer.Season', 'VideoPlayer.Episode',
-				'System.Time'
+				'System.Time',
+				'VideoPlayer.NextTitle', 'VideoPlayer.NextEndTime',
+				'VideoPlayer.ChannelName'
 			])
 		}
-	})
-
-	const leadingZero = x => x && (x < 10 ? '0'+x : ''+x)
-	const formatLabels = labels => {
-		const toSeconds = (label) => {
-			const hh = parseInt(labels[`${ label }(hh)`])
-			const mm = 60*hh + parseInt(labels[`${ label }(mm)`])
-			const ss = 60*mm + parseInt(labels[`${ label }(ss)`])
-			return ss
-		};
-
-		([ 'DurationInSeconds', 'Time' ]).forEach(x => { const y = prefixPlayer(x); labels[y] = toSeconds(y) });
-
+	}).then(labels => {
 		labels['VideoPlayer.ProductionCode'] = ([
 				leadingZero(labels['VideoPlayer.Season']),
 				leadingZero(labels['VideoPlayer.Episode'])
 			]).filter(x => x).join('x')
 
 		return labels;
-	}
-
-	const getBooleans = () => xbmc.get({
-		'method': 'XBMC.GetInfoBooleans',
-		'params': {
-			'booleans': ([  //  https://github.com/xbmc/xbmc/blob/master/xbmc/GUIInfoManager.cpp
-				'HasMedia',
-				'Playing', 'Paused', 'Rewinding', 'Forwarding',
-				'Muted',
-				'HasAudio', 'HasVideo', 
-				'IsInternetStream',
-			]).map(prefixPlayer)
-		}
 	})
-
-	const formatBooleans = booleans => {
-		booleans['Player.Status'] =
-				booleans['Player.Paused'] ? 'paused' :
-				booleans['Player.Playing'] ? 'playing' :
-				'stopped'
-		return booleans
-	}
-
 
 	const ifStringChanged = (cache) => (func) => (hash) => {
 		if (cache !== hash) func(hash)
@@ -152,39 +172,53 @@ const init = (elems) => (xbmc) => {
 	const ifAlbumChanged = ifStringChanged()
 	const ifArtistChanged = ifStringChanged()
 	const ifProductionCodeChanged = ifStringChanged()
+	const ifChannelChanged = ifStringChanged()
+
+	const ifNextTitleChanged = ifStringChanged()
+	const ifNextEndTimeChanged = ifStringChanged()
 
 	const changeProperty = property => object => value => { object[property] = value }
 	const changeInnerText = changeProperty('innerText')
-	const changeThumb = vfs => { elems.img.src = xbmc.vfs2uri(prefixImage(encodeURIComponent(vfs))) }
+	const changeThumb = vfs => { elems.now.img.src = xbmc.vfs2uri(prefixImage(encodeURIComponent(vfs))) }
 
 	const prefixImage = prefix('image://')
 
 
 	// This is the main function that checks the state of Kodi and updates the DOM accordingly
-	const maxDelta = 1.0
-	const update = ([ labels, booleans ]) => {
-
-		ifVideoChanged(src => {
-			elems.title.innerText = labels['Player.Title']
-			elems.year.innerText = labels['VideoPlayer.Year'] || labels['MusicPlayer.Year']
-			elems.video.src = xbmc.vfs2uri(src)
-		})(labels['Player.Filenameandpath'])
-
-		ifThumbChanged(changeThumb)(labels['Player.Art(thumb)'])
-
-		const playerTime = labels['Player.Time']
-		const delta = playerTime - elems.video.currentTime 
+	const maxDelta = 0.5
+	let lag = 0
+	let lastDelta = 0
+	const updateTime = (labels, startTime) => {
+		lag = (lag + elems.video.currentTime - startTime) / 4
+		const playerTime = labels['Player.Time'] + lag
+		const newDelta = playerTime - elems.video.currentTime
+		const delta = (newDelta*3 + lastDelta) / 4
+		lastDelta = newDelta
 		if (delta > maxDelta || delta < -maxDelta) {
 			elems.video.currentTime = playerTime
 		}
 
-		ifClockTimeChanged(changeInnerText(elems.clockTime))(labels['System.Time'])
-		ifFinishTimeChanged(changeInnerText(elems.finishTime))(labels['Player.FinishTime'])
-		ifShowChanged(changeInnerText(elems.show))(labels['VideoPlayer.TVShowTitle'])
-		ifAlbumChanged(changeInnerText(elems.album))(labels['MusicPlayer.Album'])
-		ifArtistChanged(changeInnerText(elems.artist))(labels['MusicPlayer.Artist'])
-		ifProductionCodeChanged(changeInnerText(elems.productionCode))(labels['VideoPlayer.ProductionCode'])
+	}
 
+	const update = (labels) => {
+
+		ifVideoChanged(src => {
+			elems.now.title.innerText = labels['Player.Title']
+			elems.now.year.innerText = labels['VideoPlayer.Year'] || labels['MusicPlayer.Year']
+			elems.video.src = xbmc.vfs2uri(src)
+		})(labels['Player.Filenameandpath'])
+
+		ifThumbChanged(changeThumb)(labels['Player.Art(thumb)'])
+		ifClockTimeChanged(changeInnerText(elems.clock.clockTime))(labels['System.Time'])
+		ifFinishTimeChanged(changeInnerText(elems.clock.finishTime))(labels['Player.FinishTime'])
+		ifShowChanged(changeInnerText(elems.now.show))(labels['VideoPlayer.TVShowTitle'])
+		ifAlbumChanged(changeInnerText(elems.now.album))(labels['MusicPlayer.Album'])
+		ifArtistChanged(changeInnerText(elems.now.artist))(labels['MusicPlayer.Artist'])
+		ifProductionCodeChanged(changeInnerText(elems.now.productionCode))(labels['VideoPlayer.ProductionCode'])
+		ifChannelChanged(changeInnerText(elems.now.channel))(labels['VideoPlayer.ChannelName'])
+
+		ifNextTitleChanged(changeInnerText(elems.next.title))(labels['VideoPlayer.NextTitle'])
+		ifNextEndTimeChanged(changeInnerText(elems.next.endTime))(labels['VideoPlayer.NextEndTime'])
 	}
 
 
@@ -196,19 +230,20 @@ const init = (elems) => (xbmc) => {
 
 	// One loop to rule them all (ie. the game loop)
 	const loop = () => {
-		Promise.all([
-			getLabels().then(formatLabels),
-			getBooleans().then(formatBooleans)
-		]).
+		let startTime = elems.video.currentTime
+		Promise.resolve().
+		then(getTime).
+		then(labels => updateTime(labels, startTime)).
+		then(getLabels).
 		then(waitAnimationFrame).
 		then(update).
 		then(success => {
-			waitSeconds(0.1)().then(loop)
-		},
-		error => {
-			console.error(error)
-			waitSeconds(10)().then(loop)
-		})
+				waitSeconds(1)().then(loop)
+			},
+			error => {
+				console.error(error)
+				waitSeconds(10)().then(loop)
+			})
 	}
 	loop()
 
