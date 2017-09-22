@@ -16,7 +16,7 @@
     "Kodi",
     "XBMC"
   ],
-  "name": "Shadow Player",
+  "name": "shadowPlayer",
   "repository": {
     "type": "git",
     "url": "https://bitbucket.org/bailus/webinterface.shadowPlayer"
