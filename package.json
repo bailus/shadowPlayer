@@ -10,7 +10,7 @@
     "build:addon.xml": "node_modules/.bin/hbsrender -c package.json -t templates/addon.xml > build/webinterface.shadowPlayer/addon.xml",
     "build:readme.md": "node_modules/.bin/hbsrender -c package.json -t templates/README.md > build/webinterface.shadowPlayer/README.md"
   },
-  "version": "0.0.3",
+  "version": "0.0.4",
   "summary": "An external video player that syncronizes its playback with Kodi.",
   "description": "An HTML5 video player that mirrors the video currently playing in Kodi to any device on your network with a modern web browser.",
   "keywords": [
