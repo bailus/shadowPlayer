@@ -15,9 +15,9 @@ npm run build
 git clone -b staging https://$USERNAME:$PASSWORD@bitbucket.org/bailus/kodi-addons.git
 cd kodi-addons
 
-rm -r webinterface.videoPlayer
-mv ../build/webinterface.videoPlayer ./
+rm -r webinterface.shadowPlayer
+mv ../build/webinterface.shadowPlayer ./
 
 git add .
-git commit -m "webinterface.videoPlayer updated using Bitbucket Pipelines (version: $VERSION)"
+git commit -m "webinterface.shadowPlayer updated using Bitbucket Pipelines (version: $VERSION)"
 git push
