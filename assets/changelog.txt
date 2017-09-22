@@ -1,0 +1,30 @@
+v0.1.0 - 2016-03-06
+ First version
+
+v0.1.1 - 2016-03-21
+ - Bug fixes
+ - Added to Kodi add-ons repository - see https://sourceforge.net/p/xbmc/mailman/message/34950368/
+
+v0.2.0 - 2016-04-22
+ - Ported from JavaScript to ES7
+ - Removed most libraries
+ - More concurrency
+
+v0.3.0 - 2016-04-25
+ - New icons (from estouchy skin)
+ - Added actors view for movies/tv shows
+ - Added "recently added" to movies/tv/music videos
+ - Menu redesign
+
+v0.3.1 - 2016-05-02
+ - Added music video details page
+ - Added top navigation bar
+ - Tablet (large screen) mode
+ - Removed mobile landscape mode
+ - Added sorting options and a new path selector to the directory page
+ - Info button now brings up the OSD when Kodi is in fullscreen mode
+
+v0.3.2 - 2016-06-07
+ - Addendum to the above change: Menu button brings up the OSD now
+ - Replaced JSONML-JBST templating with Handlebars.js
+ - Added TV/radio guide page

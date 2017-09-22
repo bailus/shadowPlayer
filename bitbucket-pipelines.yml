@@ -1,0 +1,38 @@
+# This is a sample build configuration for Javascript.
+# Check our guides at https://confluence.atlassian.com/x/VYk8Lw for more examples.
+# Only use spaces to indent your .yml configuration.
+# -----
+# You can specify a custom docker image from Docker Hub as your build environment.
+image: node:latest
+
+pipelines:
+  custom:
+    nightly-build:
+      - step:
+          image: node:latest
+          caches:
+            - node
+            - pip
+          script: # Modify the commands below to build your repository.
+            - apt-get update && apt-get install -y zip python3
+            - cd tools
+            - sh versionBump.sh
+            - cd ..
+            - sh tools/build.sh
+    manual-build:
+      - step:
+          image: node:latest
+          caches:
+            - node
+            - pip
+          script: # Modify the commands below to build your repository.
+            - apt-get update && apt-get install -y zip python3
+            - sh tools/build.sh
+
+
+#  default:  # Pipelines that run automatically on any commit
+#    - step:
+#        image: node:latest
+#        script: # Modify the commands below to build your repository.
+#          - apt-get update && apt-get install -y zip python3
+#          - sh tools/build.sh

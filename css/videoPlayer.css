@@ -1,0 +1,154 @@
+:root {
+
+
+	--fg_primary_lum: 255;
+	--fg_primary: rgb(var(--fg_primary_lum), var(--fg_primary_lum), var(--fg_primary_lum));
+
+	--fg_secondary_hue: 193;
+	--fg_secondary: hsl(var(--fg_secondary_hue), 80%, 50%);
+
+	--bg_overlay_alpha: 0.8;
+	--bg_overlay: rgba(0, 0, 0, var(--bg_overlay_alpha));
+
+	--bg_background: rgb(0, 0, 0);
+
+}
+
+body {
+
+	background-color:var(--bg_background);
+	color:var(--fg_primary);
+	font-family:sans-serif;
+	font-size:16px;
+}
+
+#main {
+	position:absolute;
+	left:0;
+	top:0;
+	width:100%;
+	height:100%;
+
+	display:flex;
+	flex-direction:column;
+}
+
+#videoPlayer {
+	position:relative;
+	width:100%;
+	height:100%;
+
+	flex-shrink:1;
+
+	overflow:hidden;
+}
+
+#videoPlayer video {
+	position:absolute;
+	left:0;
+	top:0;
+	width:100%;
+	height:100%;
+}
+
+#videoPlayer .info,
+#videoPlayer .clock {
+	position:absolute;
+
+	display:flex;
+
+	z-index:1000;
+
+	background-color:var(--bg_overlay);
+	opacity:0.8;
+}
+
+#videoPlayer .info {
+	left:0;
+	bottom:0;
+	width:auto;
+	height:3em;
+	padding-left:4em;
+	padding-right:1em;
+	margin-bottom:2em;
+
+	flex-direction:row;
+
+	border-radius:0 1.5em 1.5em 0;
+}
+
+#videoPlayer .clock{
+	right:0;
+	top:0;
+	width:auto;
+	height:4em;
+	padding-left:2em;
+	padding-right:4em;
+	margin-top:2em;
+
+	flex-direction:column;
+	justify-content:space-evenly;
+
+	border-radius:2em 0 0 2em;
+
+	text-align:right;
+}
+
+#videoPlayer .info img {
+	height:10em;
+	position:relative;
+	top:-7em;
+}
+
+#videoPlayer .infoText {
+	font-size:120%;
+	margin:auto 2em;
+}
+
+#videoPlayer .infoText .line1 {
+	font-size:80%;
+}
+#videoPlayer .infoText .line2 {
+}
+
+#videoPlayer .clockTime {
+	font-size:200%;
+}
+
+#videoPlayer .info,
+#videoPlayer .clock {
+	transition:margin 0.5s;
+}
+#videoPlayer.hideGUI .info {
+	margin-left:-100%;
+}
+#videoPlayer.hideGUI .clock {
+	margin-right:-100%;
+}
+
+#videoPlayer .finishTime {
+}
+
+#videoPlayer .finishTime:before {
+	content:"Ends at: ";
+}
+
+#videoPlayer .year {
+	color: var(--fg_secondary);
+}
+
+#videoPlayer .infoText > * > *:not(:empty):after {
+	content: " ";
+}
+
+#videoPlayer .year:not(:empty):before {
+	content: "(";
+}
+
+#videoPlayer .year:not(:empty):after {
+	content: ") ";
+}
+
+#videoPlayer .artist:not(:empty) + .title:not(:empty):before {
+	content: "- ";
+}

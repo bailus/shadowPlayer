@@ -1,0 +1,14 @@
+<addon id="webinterface.videoPlayer" name="videoPlayer - Development Version" provider-name="bailus" version="42.0.0">
+	<requires>
+		<import addon="xbmc.json" version="6.0.0" />
+	</requires>
+	<extension point="xbmc.webinterface" />
+	<extension point="xbmc.addon.metadata">
+		<platform>all</platform>
+
+		<summary lang="en">
+			Development Version. Takes a long time to load.
+		</summary>
+
+	</extension>
+</addon>

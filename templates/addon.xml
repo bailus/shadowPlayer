@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<addon
+	id="{{{ id }}}"
+	version="{{{ version }}}"
+	name="{{{ name }}}"
+	provider-name="{{{ author.email }}}">
+	<requires>
+		<import addon="xbmc.json" version="6.0.0"/>
+	</requires>
+	<extension point="xbmc.webinterface"/>
+	<extension point="xbmc.addon.metadata">
+		<platform>all</platform>
+		<source>{{{ repository.url }}}</source>
+
+		<summary lang="en">
+			{{{ summary }}}
+		</summary>
+
+		<description lang="en">
+			{{{ description }}}
+		</description>
+
+	</extension>
+</addon>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<title>Kodi / Shadow Player [[Development Version]]</title>
+
+<link rel=icon href=assets/icon.png>
+<link rel=stylesheet href=css/style.css>
+
+<div id=main>
+<div id=loading>
+	<span><img alt=Loading src=img/busy.png class=spin></span>
+	<h1>Development Version</h1>
+	<p>Resolving dependencies and compiling Javascript.</p>
+	<p>This may take some time...</p>
+</div>
+</div>
+
+<script src="https://jspm.io/system@0.19.js"></script>
+<script src="assets/advancedSettings.js"></script>
+<script>
+
+	advancedSettings.debug = true
+
+	if (!advancedSettings.jsonRPC) advancedSettings.jsonRPC = {}
+	//advancedSettings.jsonRPC.debug = true // Generates lots of messages (all network requests and responses are output to console)
+
+	if (!advancedSettings.xbmc) advancedSettings.xbmc = {}
+	advancedSettings.xbmc.debug = true
+
+	System.config({
+		"transpiler": "babel",
+		"map": {
+			"babel-polyfill": "npm:babel-polyfill",
+			"whatwg-fetch": "npm:whatwg-fetch"
+		}
+	})
+	System.import("./js/main")
+
+</script>
