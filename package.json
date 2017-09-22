@@ -133,7 +133,7 @@
     }
   },
   "license": "GPL-3.0",
-  "id": "webinterface.videoPlayer",
+  "id": "webinterface.shadowPlayer",
   "dependencies": {
     "handlebars": "^4.0.5",
     "handlebars-cmd": "^0.1.4",
