@@ -145,7 +145,6 @@
     "postcss-cssnext": "^2.6.0",
     "postcss-import": "8.1.0"
   },
-  "summary": "A fast and simple remote control for mobile devices.",
   "private": true,
   "devDependencies": {
     "jspm": "^0.17.0-beta.44"
