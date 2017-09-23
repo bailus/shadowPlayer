@@ -2,7 +2,7 @@
 
 An external video player that syncronizes its playback with Kodi.
 
-![Screenshot](https://bytebucket.org/bailus/hax-for-kodi/raw/master/assets/screenshot-small.jpg)
+![Screenshot](https://bytebucket.org/bailus/webinterface.shadowplayer/raw/master/assets/screenshot-small.jpg)
 
 
 ## Links
