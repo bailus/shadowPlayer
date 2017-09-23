@@ -60,7 +60,6 @@ body {
 
 	z-index:1000;
 
-	background-color:var(--bg_overlay);
 	opacity:0.8;
 }
 
@@ -75,6 +74,7 @@ body {
 
 	flex-direction:row;
 
+	background-color:var(--bg_overlay);
 	border-radius:0 1.5em 1.5em 0;
 }
 
@@ -88,8 +88,6 @@ body {
 	margin-top:8em;
 
 	flex-direction:row;
-
-	border-radius:1.5em 0 0 1.5em;
 }
 
 #videoPlayer .clock {
@@ -104,6 +102,7 @@ body {
 	flex-direction:column;
 	justify-content:space-evenly;
 
+	background-color:var(--bg_overlay);
 	border-radius:2em 0 0 2em;
 
 	text-align:right;

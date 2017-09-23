@@ -185,17 +185,33 @@ const init = (elems) => (xbmc) => {
 
 
 	// This is the main function that checks the state of Kodi and updates the DOM accordingly
-	const maxDelta = 0.5
-	let lag = 0
+	const minDelta = 0.5  // seconds. Minimum time delta before re-sync
+	const maxDelta = 2*minDelta  // seconds. Smoothing is applied to delta values below this
 	let lastDelta = 0
+	let lastPlayerTime = 0
+	let lastTime = 0
 	const updateTime = (labels, startTime) => {
-		lag = (lag + elems.video.currentTime - startTime) / 4
+
+		const lag = (elems.video.currentTime - startTime) / 2
 		const playerTime = labels['Player.Time'] + lag
+
 		const newDelta = playerTime - elems.video.currentTime
-		const delta = (newDelta*3 + lastDelta) / 4
+		const delta = (newDelta < maxDelta || newDelta > -maxDelta) ?
+			(newDelta + lastDelta) / 2 :
+			newDelta
+		const playbackRate = (playerTime - lastPlayerTime) / ((elems.video.currentTime - lastTime) / elems.video.playbackRate)
 		lastDelta = newDelta
-		if (delta > maxDelta || delta < -maxDelta) {
+		lastPlayerTime = playerTime
+		lastTime = elems.video.currentTime
+
+		if (delta > minDelta || delta < -minDelta) { //re-sync
 			elems.video.currentTime = playerTime
+			elems.video.playbackRate = 1
+			console.log(`re-sync ${ delta } seconds`)
+		}
+		else { //adjust playback rate
+			elems.video.playbackRate = ((6*elems.video.playbackRate) + (playbackRate) + 1) / 8
+			console.log(`adjust playback rate: ${ elems.video.playbackRate }x`)
 		}
 
 	}
@@ -238,7 +254,7 @@ const init = (elems) => (xbmc) => {
 		then(waitAnimationFrame).
 		then(update).
 		then(success => {
-				waitSeconds(1)().then(loop)
+				waitSeconds(0.5)().then(loop)
 			},
 			error => {
 				console.error(error)
