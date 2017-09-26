@@ -185,8 +185,8 @@ const init = (elems) => (xbmc) => {
 
 
 	// This is the main function that checks the state of Kodi and updates the DOM accordingly
-	const minDelta = 0.5  // seconds. Minimum time delta before re-sync
-	const maxDelta = 2*minDelta  // seconds. Smoothing is applied to delta values below this
+	const minDelta = 2  // seconds. Minimum time delta before jump
+	let timeStep = 1
 	let lastDelta = 0
 	let lastPlayerTime = 0
 	let lastTime = 0
@@ -195,29 +195,36 @@ const init = (elems) => (xbmc) => {
 		const lag = (elems.video.currentTime - startTime) / 2
 		const playerTime = labels['Player.Time'] + lag
 
-		const newDelta = playerTime - elems.video.currentTime
-		const delta = (newDelta < maxDelta || newDelta > -maxDelta) ?
-			(newDelta + lastDelta) / 2 :
-			newDelta
+		const delta = playerTime - elems.video.currentTime
 		const playbackRate = (playerTime - lastPlayerTime) / ((elems.video.currentTime - lastTime) / elems.video.playbackRate)
-		lastDelta = newDelta
-		lastPlayerTime = playerTime
-		lastTime = elems.video.currentTime
 
-		if (delta > minDelta || delta < -minDelta) { //re-sync
-			elems.video.currentTime = playerTime
+		timeStep = 2
+
+		if (!isFinite(playbackRate) || delta > minDelta || delta < -minDelta) {
+			// quick re-sync
+			elems.video.currentTime += delta
 			elems.video.playbackRate = 1
-			console.log(`re-sync ${ delta } seconds`)
+			console.log(`jump to ${ elems.video.currentTime + delta } seconds`)
 		}
-		else { //adjust playback rate
-			elems.video.playbackRate = ((6*elems.video.playbackRate) + (playbackRate) + 1) / 8
-			console.log(`adjust playback rate: ${ elems.video.playbackRate }x`)
+		else if (isFinite(playbackRate)) {
+			// smooth re-sync
+			const t = timeStep * elems.video.playbackRate
+			const d = ((9*delta) + (8*lastDelta)) / 32
+			const p = (t+d)/t
+			elems.video.playbackRate = p
+			//console.log(`re-sync ${ delta } seconds`)
+			timeStep = 1/8
 		}
+
+		lastTime = elems.video.currentTime
+		lastDelta = delta
+		lastPlayerTime = playerTime
+
+		//console.log(`adjust playback rate: ${ elems.video.playbackRate }x`)
 
 	}
 
 	const update = (labels) => {
-
 		ifVideoChanged(src => {
 			elems.now.title.innerText = labels['Player.Title']
 			elems.now.year.innerText = labels['VideoPlayer.Year'] || labels['MusicPlayer.Year']
@@ -254,11 +261,11 @@ const init = (elems) => (xbmc) => {
 		then(waitAnimationFrame).
 		then(update).
 		then(success => {
-				waitSeconds(0.5)().then(loop)
+				waitSeconds(timeStep)().then(loop)
 			},
 			error => {
 				console.error(error)
-				waitSeconds(10)().then(loop)
+				waitSeconds(1)().then(loop)
 			})
 	}
 	loop()
