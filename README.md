@@ -1,5 +1,9 @@
 # kodi.webinterface.shadowPlayer
 
+An external video player that syncronizes its playback with Kodi.
+
+![Screenshot](https://bytebucket.org/bailus/webinterface.shadowplayer/raw/master/assets/screenshot-small.jpg)
+
 
 ## Links
 
