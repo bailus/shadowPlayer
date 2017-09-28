@@ -4,7 +4,7 @@ An external video player that synchronizes its playback with Kodi.
 
 ![Screenshot](https://bytebucket.org/bailus/webinterface.shadowplayer/raw/master/assets/screenshot-small.jpg)
 
-[[embed url=http://www.youtube.com/watch?v=https://www.youtube.com/watch?v=fyycDkYsYHA]]
+[[embed url=http://www.youtube.com/watch?v=fyycDkYsYHA]]
 
 
 ## Links
