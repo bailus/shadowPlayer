@@ -10,6 +10,7 @@ let loadElems = (document) => {
 	const elems = {
 		container: document.createElement('section'),
 		video: document.createElement('video'),
+		delta: document.createElement('div'),
 		clock: {
 			container: document.createElement('div'),
 			clockTime: document.createElement('span'),
@@ -46,6 +47,7 @@ let loadElems = (document) => {
 	elems.clock.finishTime.className = 'finishTime'
 
 	elems.video.autoplay = true
+	elems.delta.className = 'delta'
 
 	elems.now.container.className = 'playingNow'
 	elems.now.text.className = 'text'
@@ -84,6 +86,7 @@ let loadElems = (document) => {
 	elems.now.container.append(elems.now.img)
 	elems.now.container.append(elems.now.text)
 
+	elems.next.textLineA.append(elems.delta)
 	elems.next.textLineA.append(elems.next.title)
 	elems.next.textLineB.append(elems.next.endTime)
 
@@ -118,18 +121,17 @@ const init = (elems) => (xbmc) => {
 		return ss
 	}
 
-	const getTime = () => xbmc.get({
-		'method': 'XBMC.GetInfoLabels',
-		'params': {
-			'labels': ([  //  http://kodi.wiki/view/InfoLabels
-				'Time(hh)', 'Time(mm)', 'Time(ss)',
+	const getActivePlayer = () => xbmc.get({ 'method': 'Player.GetActivePlayers' }).then(players => players[0])
 
-			]).map(prefixPlayer)
-		}
-	}).then(labels => {
-		labels['Player.Time'] = toSeconds(labels)('Player.Time')
-		return labels;
-	})
+	const getTime = ({ playerid, type }) => xbmc.get({
+					'method': 'Player.GetProperties',
+					'params': {
+						'playerid': playerid,
+						'properties': [
+							'time', 'speed'
+						]
+					}
+				})
 
 	const getLabels = () => xbmc.get({
 		'method': 'XBMC.GetInfoLabels',
@@ -183,45 +185,60 @@ const init = (elems) => (xbmc) => {
 
 	const prefixImage = prefix('image://')
 
+	const timeObjToSeconds = o => ((((o.hours*60) + o.minutes)*60) + o.seconds)+(o.milliseconds/1e3)
 
 	// This is the main function that checks the state of Kodi and updates the DOM accordingly
-	const minDelta = 2  // seconds. Minimum time delta before jump
-	let timeStep = 1
-	let lastDelta = 0
+	const minDelta = 10.24 // seconds. Minimum time delta before jump
+	let timeStep = 2
 	let lastPlayerTime = 0
 	let lastTime = 0
-	const updateTime = (labels, startTime) => {
+	let delta = 0
+	let lastLag = 0
+	let lastTemperature = 1
+	const updateTime = ({ time, speed }, startTime) => {
 
 		const lag = (elems.video.currentTime - startTime) / 2
-		const playerTime = labels['Player.Time'] + lag
 
-		const delta = playerTime - elems.video.currentTime
+		const jitter = (lag - lastLag)/(lag + lastLag)
+
+		const playerTime = timeObjToSeconds(time) + lag
+
+		let temperature = Math.pow(1 - Math.max(0, Math.min(1, 1/Math.abs(delta*512))), 2)
+
+		delta = playerTime - elems.video.currentTime
 		const playbackRate = (playerTime - lastPlayerTime) / ((elems.video.currentTime - lastTime) / elems.video.playbackRate)
 
-		timeStep = 2
+		const adjustedMinDelta = minDelta*playbackRate
+		const maxJitter = Math.pow(temperature, 1/4)*2 + 0.05
 
-		if (!isFinite(playbackRate) || delta > minDelta || delta < -minDelta) {
+		if (jitter > maxJitter || jitter < -maxJitter) {
+			// bad network - don't re-sync
+			elems.video.playbackRate = speed
+		}
+		else if (!isFinite(playbackRate) || delta > adjustedMinDelta || delta < -adjustedMinDelta) {
 			// quick re-sync
 			elems.video.currentTime += delta
-			elems.video.playbackRate = 1
+			elems.video.playbackRate = speed
 			console.log(`jump to ${ elems.video.currentTime + delta } seconds`)
+			timeStep = 2
+			temperature = 1
 		}
 		else if (isFinite(playbackRate)) {
 			// smooth re-sync
+			timeStep = Math.sqrt(Math.max(1/4, Math.min(1, 1/Math.abs(delta*512))))
+
+			const k = delta * (temperature + lastTemperature) / 2
+
 			const t = timeStep * elems.video.playbackRate
-			const d = ((9*delta) + (8*lastDelta)) / 32
-			const p = (t+d)/t
-			elems.video.playbackRate = p
-			//console.log(`re-sync ${ delta } seconds`)
-			timeStep = 1/8
+			const p = (t+k)/t
+			if (isFinite(p))
+				elems.video.playbackRate = p*speed
 		}
 
 		lastTime = elems.video.currentTime
-		lastDelta = delta
 		lastPlayerTime = playerTime
-
-		//console.log(`adjust playback rate: ${ elems.video.playbackRate }x`)
-
+		lastLag = lag
+		lastTemperature = temperature
 	}
 
 	const update = (labels) => {
@@ -242,6 +259,8 @@ const init = (elems) => (xbmc) => {
 
 		ifNextTitleChanged(changeInnerText(elems.next.title))(labels['VideoPlayer.NextTitle'])
 		ifNextEndTimeChanged(changeInnerText(elems.next.endTime))(labels['VideoPlayer.NextEndTime'])
+
+		changeInnerText(elems.delta)(`${ Math.round(delta*1e5) / 1e2 } ms`)
 	}
 
 
@@ -253,10 +272,15 @@ const init = (elems) => (xbmc) => {
 
 	// One loop to rule them all (ie. the game loop)
 	const loop = () => {
-		let startTime = elems.video.currentTime
+		let startTime = 0
 		Promise.resolve().
+		then(getActivePlayer).
+		then(player => {
+			startTime = elems.video.currentTime
+			return player
+		}).
 		then(getTime).
-		then(labels => updateTime(labels, startTime)).
+		then(properties => updateTime(properties, startTime)).
 		then(getLabels).
 		then(waitAnimationFrame).
 		then(update).

@@ -1,13 +1,21 @@
 # kodi.webinterface.shadowPlayer
 
-An external video player that syncronizes its playback with Kodi.
+An external video player that synchronizes its playback with Kodi.
 
 ![Screenshot](https://bytebucket.org/bailus/webinterface.shadowplayer/raw/master/assets/screenshot-small.jpg)
+
+[[embed url=http://www.youtube.com/watch?v=https://www.youtube.com/watch?v=fyycDkYsYHA]]
 
 
 ## Links
 
- * [My Kodi addon repository](http://kodi.bailey.geek.nz/) `http://kodi.bailey.geek.nz/` [(source)](https://bitbucket.org/bailus/kodi-addons)
+ * [Download Kodi](https://kodi.tv/download)
+ * [My Kodi addon repository](https://bitbucket.org/bailus/kodi-addons) `http://kodi.bailey.geek.nz/`
+
+
+
+## Supported Browsers
+Shadow Player uses the HTML `<video>` and `<audio>` tags to play audio and video. Different browsers support different media formats - see [this MDN article](https://developer.mozilla.org/en-US/docs/Web/HTML/Supported_media_formats) for more information. A modern browser such as [Firefox](https://www.mozilla.org/en-US/firefox/new/) is recommended.
 
 
 ## Installation
@@ -32,9 +40,9 @@ Then install the Shadow Player addon from within [Kodi](https://kodi.tv/download
 
 
 ## Configuration
-See also: http://kodi.wiki/view/web_interface
+See also: [kodi.wiki/view/web\_interface](http://kodi.wiki/view/web_interface)
 
-After installation, Kodi's web interface can be enabled by going to:
+After installation, the web interface can be enabled from within Kodi by going to:
 
  1. Settings
  2. Service Settings
@@ -79,7 +87,7 @@ npm run build
 A self-contained build will be saved into the `./build` folder.
 
 
-### Dependencies
+### Stack
 #### Development tools
  * [Babel](https://babeljs.io/) - Latest JavaScript (ES7) syntax support
  * [PostCSS-cssnext](http://cssnext.io/) - Latest CSS syntax support

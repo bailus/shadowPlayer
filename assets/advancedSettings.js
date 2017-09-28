@@ -1,6 +1,6 @@
 window.advancedSettings = {
 	"debug": false,
-	"upgradeToSocket": false,
+	"upgradeToSocket": true,
 	"pages": {
 		"default": "Home",
 		"groupingThreshold": 50
