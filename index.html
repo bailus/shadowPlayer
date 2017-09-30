@@ -8,12 +8,7 @@
 <link rel=stylesheet href=css/style.css>
 
 <div id=main>
-<div id=loading>
-	<span><img alt=Loading src=img/busy.png class=spin></span>
-	<h1>Development Version</h1>
-	<p>Resolving dependencies and compiling Javascript.</p>
-	<p>This may take some time...</p>
-</div>
+	<section id=videoPlayer></section>
 </div>
 
 <script src="https://jspm.io/system@0.19.js"></script>
@@ -32,7 +27,8 @@
 		"transpiler": "babel",
 		"map": {
 			"babel-polyfill": "npm:babel-polyfill",
-			"whatwg-fetch": "npm:whatwg-fetch"
+			"whatwg-fetch": "npm:whatwg-fetch",
+			"vue": "./jspm_packages/npm/vue@2.4.4/dist/vue.js"
 		}
 	})
 	System.import("./js/main")

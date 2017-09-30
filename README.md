@@ -86,6 +86,9 @@ A self-contained build will be saved into the `./build` folder.
 
 
 ### Stack
+#### Libraries
+ * [Vue.js](https://vuejs.org/) - User Interface
+
 #### Development tools
  * [Babel](https://babeljs.io/) - Latest JavaScript (ES7) syntax support
  * [PostCSS-cssnext](http://cssnext.io/) - Latest CSS syntax support

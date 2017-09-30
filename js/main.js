@@ -22,15 +22,9 @@ ready().then(function () { //on document load
 		XBMC(window.location.host)
 		.catch(e => error({ details: [ 'Could not connect to Kodi', e ] }))
 
-	const videoLoad = Promise.resolve(VideoPlayer(document))
+	const videoLoad = Promise.resolve(VideoPlayer)
 
 	const videoPlayer = Promise.all([ videoLoad, connectToKodi ])
 	.then(([ videoConnect, xbmc ]) => videoConnect(xbmc))
 
-	videoPlayer.then(({ elems={} }) => {
-		const mainElem = document.getElementById('main')
-		mainElem.innerText = ''
-		mainElem.append(elems.container)
-	})
-	
 });
