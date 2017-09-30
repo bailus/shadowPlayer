@@ -194,6 +194,7 @@ const init = (elems) => (xbmc) => {
 	let lastTime = 0
 	let delta = 0
 	let lastLag = 0
+	let temperature = 1
 	let lastTemperature = 1
 	const updateTime = ({ time, speed }, startTime) => {
 
@@ -203,17 +204,20 @@ const init = (elems) => (xbmc) => {
 
 		const playerTime = timeObjToSeconds(time) + lag
 
-		let temperature = Math.pow(1 - Math.max(0, Math.min(1, 1/Math.abs(delta*512))), 2)
+		temperature = Math.pow(1 - Math.max(0, Math.min(1, 1/Math.abs(delta*512))), 2)
 
 		delta = playerTime - elems.video.currentTime
 		const playbackRate = (playerTime - lastPlayerTime) / ((elems.video.currentTime - lastTime) / elems.video.playbackRate)
 
 		const adjustedMinDelta = minDelta*playbackRate
-		const maxJitter = Math.pow(temperature, 1/4)*2 + 0.05
+		const maxJitter = Math.pow(temperature, 2)/2
 
 		if (jitter > maxJitter || jitter < -maxJitter) {
 			// bad network - don't re-sync
 			elems.video.playbackRate = speed
+			delta = undefined
+			temperature = (3*lastTemperature + temperature) / 4
+			timeStep = 1/16
 		}
 		else if (!isFinite(playbackRate) || delta > adjustedMinDelta || delta < -adjustedMinDelta) {
 			// quick re-sync
@@ -225,9 +229,10 @@ const init = (elems) => (xbmc) => {
 		}
 		else if (isFinite(playbackRate)) {
 			// smooth re-sync
-			timeStep = Math.sqrt(Math.max(1/4, Math.min(1, 1/Math.abs(delta*512))))
+			timeStep = Math.sqrt(Math.max(1/16, Math.min(1, 1/Math.abs(delta*1024))))/4
 
 			const k = delta * (temperature + lastTemperature) / 2
+			temperature = temperature * 0.95
 
 			const t = timeStep * elems.video.playbackRate
 			const p = (t+k)/t
@@ -237,7 +242,7 @@ const init = (elems) => (xbmc) => {
 
 		lastTime = elems.video.currentTime
 		lastPlayerTime = playerTime
-		lastLag = lag
+		lastLag = (7*lastLag + lag) / 8
 		lastTemperature = temperature
 	}
 
