@@ -53,7 +53,8 @@ body {
 
 #videoPlayer .playingNow,
 #videoPlayer .playingNext,
-#videoPlayer .clock {
+#videoPlayer .clock,
+#videoPlayer .stats {
 	position:absolute;
 
 	display:flex;
@@ -76,6 +77,31 @@ body {
 
 	background-color:var(--bg_overlay);
 	border-radius:0 1.5em 1.5em 0;
+}
+
+#videoPlayer .stats {
+	left:4em;
+	top:2em;
+	width:15em;
+	height:auto;
+	margin:1em;
+	padding:1%;
+
+	flex-direction:row;
+	flex-wrap:wrap;
+
+	color:green;
+	background-color:var(--bg_overlay);
+	font-family:monospace;
+	font-weight:bold;
+}
+
+#videoPlayer .stats > dt {
+	width: 49%;
+}
+#videoPlayer .stats > dd {
+	width: 49%;
+	text-align:right;
 }
 
 #videoPlayer .playingNext {
@@ -138,7 +164,8 @@ body {
 #videoPlayer .clock {
 	transition:margin 0.5s;
 }
-#videoPlayer.hideGUI .playingNow {
+#videoPlayer.hideGUI .playingNow,
+#videoPlayer.hideStats .stats {
 	margin-left:-100%;
 }
 #videoPlayer.hideGUI .playingNext,
