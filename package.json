@@ -10,7 +10,7 @@
     "build:addon.xml": "node_modules/.bin/hbsrender -c package.json -t templates/addon.xml > build/webinterface.shadowPlayer/addon.xml",
     "build:readme.md": "node_modules/.bin/hbsrender -c package.json -t templates/README.md > build/webinterface.shadowPlayer/README.md"
   },
-  "version": "0.0.5",
+  "version": "0.0.6",
   "summary": "An external video player that syncronizes its playback with Kodi.",
   "description": "An HTML5 video player that mirrors the video currently playing in Kodi to any device on your network with a modern web browser.",
   "keywords": [
@@ -33,7 +33,6 @@
   "jspm": {
     "main": "main.js",
     "devDependencies": {
-      "babel": "npm:babel-core@^5.8.24",
       "net": "npm:jspm-nodelibs-net@^0.2.0",
       "core-js": "npm:core-js@^1.1.4",
       "uglify-js": "npm:uglify-js@^2.6",
@@ -45,80 +44,25 @@
       "transpileES6": true,
       "minify": false
     },
+    "browserConfig": {
+      "paths": {
+        "npm:": "jspm_packages/npm/",
+        "github:": "jspm_packages/github/"
+      }
+    },
+    "nodeConfig": {
+      "paths": {
+        "npm:": "jspm_packages/npm/",
+        "github:": "jspm_packages/github/"
+      }
+    },
     "overrides": {
-      "npm:esprima@2.7.3": {
-        "jspmNodeConversion": false
-      },
-      "npm:svgo@0.7.2": {
-        "meta": {
-          "lib/svgo/config.js": {
-            "deps": [
-              "../../plugins/removeDoctype",
-              "../../plugins/removeXMLProcInst",
-              "../../plugins/removeComments",
-              "../../plugins/removeMetadata",
-              "../../plugins/removeEditorsNSData",
-              "../../plugins/cleanupAttrs",
-              "../../plugins/minifyStyles",
-              "../../plugins/convertStyleToAttrs",
-              "../../plugins/cleanupIDs",
-              "../../plugins/removeRasterImages",
-              "../../plugins/removeUselessDefs",
-              "../../plugins/cleanupNumericValues",
-              "../../plugins/cleanupListOfValues",
-              "../../plugins/convertColors",
-              "../../plugins/removeUnknownsAndDefaults",
-              "../../plugins/removeNonInheritableGroupAttrs",
-              "../../plugins/removeUselessStrokeAndFill",
-              "../../plugins/removeViewBox",
-              "../../plugins/cleanupEnableBackground",
-              "../../plugins/removeHiddenElems",
-              "../../plugins/removeEmptyText",
-              "../../plugins/convertShapeToPath",
-              "../../plugins/moveElemsAttrsToGroup",
-              "../../plugins/moveGroupAttrsToElems",
-              "../../plugins/collapseGroups",
-              "../../plugins/convertPathData",
-              "../../plugins/convertTransform",
-              "../../plugins/removeEmptyAttrs",
-              "../../plugins/removeEmptyContainers",
-              "../../plugins/mergePaths",
-              "../../plugins/removeUnusedNS",
-              "../../plugins/transformsWithOnePath",
-              "../../plugins/sortAttrs",
-              "../../plugins/removeTitle",
-              "../../plugins/removeDesc",
-              "../../plugins/removeDimensions",
-              "../../plugins/removeAttrs",
-              "../../plugins/addClassesToSVGElement",
-              "../../plugins/removeStyleElement",
-              "../../plugins/removeXMLNS",
-              "../../plugins/removeElementsByAttr",
-              "../../plugins/addAttributesToSVGElement"
-            ]
-          }
-        }
-      },
       "npm:babel-runtime@5.8.38": {
         "optionalDependencies": {
           "core-js": "^1.2.0"
         },
         "main": false,
         "dependencies": {}
-      },
-      "npm:babel-core@5.8.38": {
-        "dependencies": {},
-        "main": "browser.js",
-        "meta": {
-          "browser.js": {
-            "format": "global",
-            "exports": "babel"
-          }
-        },
-        "map": {
-          "regenerator/runtime": "babel-runtime/regenerator/runtime"
-        },
-        "jspmNodeConversion": false
       },
       "npm:browserify-zlib@0.1.4": {
         "dependencies": {
@@ -146,21 +90,10 @@
           "util": "@node/util"
         }
       },
-      "npm:font-awesome@4.7.0": {
-        "main": "css/font-awesome.css!",
-        "jspmNodeConversion": false,
-        "registry": "jspm",
-        "dependencies": {
-          "css": "0.1"
-        }
-      },
       "npm:inherits@2.0.3": {
         "ignore": [
           "test.js"
         ]
-      },
-      "npm:jquery@3.2.1": {
-        "format": "amd"
       },
       "npm:lodash@4.17.4": {
         "map": {
@@ -168,57 +101,11 @@
           "process": "@empty"
         }
       },
-      "npm:mocha@3.5.3": {
-        "main": "./mocha.js",
-        "jspmNodeConversion": false,
-        "meta": {
-          "mocha.js": {
-            "deps": [
-              "./mocha.css!"
-            ],
-            "exports": "Mocha",
-            "format": "global"
-          }
-        },
-        "dependencies": {
-          "css": "*",
-          "debug": "^2.2.0",
-          "json3": "npm:json3@3.3.2",
-          "lodash.create": "npm:lodash.create@3.1.1"
-        },
-        "registry": "jspm",
-        "map": {
-          "./mocha.js": {
-            "node": "./lib/mocha.js"
-          },
-          "escape-string-regexp": "@empty",
-          "growl": "@empty",
-          "./lib/reporters.js": "./lib/reporters/index.js",
-          "./lib/interfaces.js": "./lib/interfaces/index.js",
-          "./lib/to-iso-string.js": "./lib/to-iso-string/index.js",
-          "glob": "@empty",
-          "mkdirp": "@empty",
-          "jade": "@empty",
-          "diff": "@empty",
-          "supports-color": "@empty",
-          "path": "@node/path",
-          "fs": "@node/fs",
-          "util": "@node/util",
-          "events": "@node/events",
-          "tty": "@node/tty"
-        }
-      },
-      "npm:moment@2.18.1": {
-        "jspmNodeConversion": false
-      },
       "npm:pbkdf2@3.0.14": {
         "main": "browser.js"
       },
       "npm:safe-buffer@5.1.1": {
         "browser": "index.js"
-      },
-      "npm:vue@2.4.4": {
-        "main": "./dist/vue.common.js"
       }
     },
     "peerDependencies": {
@@ -246,15 +133,14 @@
       "zlib": "npm:jspm-nodelibs-zlib@^0.2.0"
     },
     "dependencies": {
+      "babel": "npm:babel-core@^6.26.0",
       "babel-plugin-transform-es2015-arrow-functions": "npm:babel-plugin-transform-es2015-arrow-functions@^6.8.0",
-      "lodash": "npm:lodash@^4.17.4",
-      "moment": "npm:moment@^2.13.0",
       "babel-polyfill": "npm:babel-polyfill@^6.9.1",
       "json": "github:systemjs/plugin-json@^0.1.2",
-      "handlebars": "github:components/handlebars.js@^4.0.5",
-      "systemjs-plugin-vue": "npm:systemjs-plugin-vue@^1.2.0",
+      "systemjs": "npm:systemjs@^0.20.19",
+      "systemjs-plugin-babel": "npm:systemjs-plugin-babel@^0.0.25",
       "vue": "npm:vue@^2.4.4",
-      "vue.js": "npm:vue.js@^0.3.2",
+      "vue-touch": "npm:vue-touch@next",
       "whatwg-fetch": "npm:whatwg-fetch@^1.0.0",
       "babel-preset-es2015": "npm:babel-preset-es2015@^6.9.0"
     }

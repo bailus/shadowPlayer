@@ -1,23 +1,65 @@
 import Vue from "vue"
+import VueTouch from "vue-touch"
+import VueSlider from "vue-slider-component"
 
-const nullFunc = x => undefined
-const isDefined = x => x !== undefined
+import { seconds2shortstring } from "./util.js"
 
-const iif = cond => (t, f=nullFunc) => x => cond(x) ? t(x) : f(x)
-const maybe = iif(isDefined)
+
+const constant = x => y => x
+const id = {
+	func: x => x,
+	none: constant(),
+	mult: constant(1),
+	add:  constant(0)
+}
+const none = id.none()
+
+const mapObject = f => x => {
+	const o = {}
+	Object.keys(x).forEach(key => { o[key] = f(x[key], key, x) })
+	return o
+}
+
+const pushLimitN = (n=1) => (arr=[]) => x => {
+	arr.push(x)
+	if (arr.length > n)
+		arr.splice(0, 1)
+}
+const pushLimit = pushLimitN(10)
+
+const is = {}
+is.truthy = x => ( x == true )
+is.defined = x => ( x !== none )
+is.numeric = x => ( !isNaN(parseFloat(x)) && isFinite(x) )
+is.lessThanTen = x => ( x < 10 )
+
+const If = cond => (t=id.func, f=id.none) => x => ( cond(x) ? t(x) : f(x) )
+Object.assign(If, mapObject(If)(is))
+
+const prefix = a => b => ([ a, b ]).join('')
+const suffix = a => b => ([ b, a ]).join('')
+const prefixImage = prefix('image://')
+const prefixZero = prefix('0')
+const toString = x => ''+x
+const toNumeric = x => 0+x
+const leadingZero = If.numeric(If.lessThanTen(prefixZero, toString), id.func)
+
+const timeObjToSeconds = o => ((((o.hours*60) + o.minutes)*60) + o.seconds)+(o.milliseconds/1e3)
+const secondsToTimeObj = s => ({ 'hours': Math.floor(s/3600), 'minutes': Math.floor(s/60)%60, 'seconds': s%60 })
 
 const waitSeconds = t => x => new Promise(resolve => { window.setTimeout(() => resolve(x), 1000*t) })
 const waitAnimationFrame = x =>  new Promise(resolve => { window.requestAnimationFrame(() => resolve(x)) })
 
-const prefix = a => b => [ a, b ].join('')
-const leadingZero = x => (x && (x < 10 ? '0'+x : ''+x))
 
-const timeObjToSeconds = o => ((((o.hours*60) + o.minutes)*60) + o.seconds)+(o.milliseconds/1e3)
+
+Vue.use(VueTouch)
+VueTouch.registerCustomEvent('dbltap', { type: 'tap', taps: 2 })
 
 
 export default function ({ get, vfs2uri }) {
+	const getActivePlayer = () => get({ 'method': 'Player.GetActivePlayers' }).then(players => players[0])
 
-	const art2uri = (vfs) => vfs2uri(prefix('image://')(encodeURIComponent(vfs)))
+	const art2uri = If.truthy(vfs => vfs2uri(prefixImage(encodeURIComponent(vfs))), id.func)
 
 	const vm = new Vue({
 		el: '#videoPlayer',
@@ -25,19 +67,49 @@ export default function ({ get, vfs2uri }) {
 			labels: {},
 			stats: {},
 			hideGUI: true,
-			hideStats: true
+			hideStats: true,
+			currentTime: 0,
+			duration: 0,
+			speed: 0,
+			stopped: true,
+			remoteVolume:100,
+			deltaHistory: []
+		},
+		components: {
+			vueSlider: VueSlider
+		},
+		methods: {
+			action: a => get({
+				method: 'Input.ExecuteAction',
+				params: {
+					'action': a
+				}
+			}),
+			seek: s => getActivePlayer().then(({ playerid }) => get({
+				method: 'Player.Seek',
+				params: {
+					'playerid': playerid,
+					'value': { 'time': secondsToTimeObj(s) }
+				}
+			})),
+			seconds2shortstring: seconds2shortstring,
+			log: x => { console.log(x); return x },
+			suffix: suffix
 		},
 		template: `<div id="videoPlayer"
-					:class="{ hideGUI: hideGUI, hideStats: hideStats }"
-					v-on:click="hideGUI = !hideGUI"
-					v-on:dblclick="hideStats = !hideStats">
+					:class="{ hideGUI: (hideGUI && speed < 1.5 && speed > 0.75), hideStats: hideStats, stopped: stopped }">
 
-				<video id="xbmc-video" autoplay :src="labels['Player.File']"></video>
+				<video id="xbmc-video" autoplay
+					:src="labels['Player.File']"
+					v-touch:tap="evt => (hideGUI = !hideGUI)"
+					v-touch:dbltap="evt => (hideStats = !hideStats)"></video>
+
 				<div class="clock">
 					<span class="clockTime">{{ labels['System.Time'] }}</span>
 					<span class="finishTime">{{ labels['Player.FinishTime'] }}</span>
 				</div>
-				<div class="playingNow">
+
+				<div class="playingNow" v-touch:tap="evt => action('playpause')">
 					<img class="thumbnail" :src="labels['Player.Thumb']"></img>
 					<div class="text">
 						<div class="line1">
@@ -52,6 +124,7 @@ export default function ({ get, vfs2uri }) {
 						</div>
 					</div>
 				</div>
+
 				<div class="playingNext">
 					<div class="text">
 						<div class="line1">
@@ -61,6 +134,7 @@ export default function ({ get, vfs2uri }) {
 						</div>
 					</div>
 				</div>
+
 				<dl class="stats">
 					<dt>Time Delta</dt>
 					<dd>{{ stats.delta }} ms</dd>
@@ -71,6 +145,22 @@ export default function ({ get, vfs2uri }) {
 					<dt>Temperature</dt>
 					<dd>{{ stats.temperature }}%</dd>
 				</dl>
+
+				<div class="controls">
+					<div class="progressBar">
+						<vueSlider :value.sync="currentTime" :max="duration" :disabled="stopped"
+							:formatter="seconds2shortstring"
+							v-on:callback="seek" :lazy="true" width="100%"
+							:speed="0" :tooltip="hideGUI && speed < 1.5 && speed > 0.75 ? 'false' : 'always'"></vueSlider>
+					</div>
+				</div>
+
+				<div class="volumeControls">
+					<div class="volumeControl">
+						<vueSlider :value.sync="remoteVolume" :max="100" direction="vertical" tooltip-dir="right" height="100%" tooltip="hover" :formatter="suffix('%')" width="6"></vueSlider>
+					</div>
+				</div>
+
 			</div>`
 	})
 
@@ -107,10 +197,18 @@ export default function ({ get, vfs2uri }) {
 		vm.labels = labels
 	})
 
+	const getVolume = () => get({
+		'method': 'Application.GetProperties',
+		'params': {
+			'properties': [ 'volume', 'muted' ]
+		}
+	}).then(({ volume, muted }) => {
+		vm.remoteVolume = volume
+		vm.muted = muted
+	})
 
 
 
-	const getActivePlayer = () => get({ 'method': 'Player.GetActivePlayers' }).then(players => players[0])
 
 	const getTime = ({ playerid, type }) => get({
 			'method': 'Player.GetProperties',
@@ -125,55 +223,61 @@ export default function ({ get, vfs2uri }) {
 
 
 	const videoElem = document.getElementById('xbmc-video')
-	const minDelta = 2.56 // seconds. Minimum time delta before jump
-	let timeStep = 2
-	let lastPlayerTime = 0
-	let lastTime = 0
-	let delta = 0
-	let lastLag = 0
+	const maxPlaybackRate = 128
+	const minPlaybackRate = 1/16
+	let timeStep = 1
 	let temperature = 1
 	let lastTemperature = 1
-	let lastPlaybackRate = 1
+	let lastPlayerTime = 0
+	let lastTime = 0
+	let lastLag = none
+	const deltaHistory = []
+	const pushDelta = pushLimit(vm.deltaHistory)
 	const updateTime = ({ time, speed }, startTime) => {
 
-		const lag = (videoElem.currentTime - startTime) / 2
+		let localPlaybackRate = If.numeric(id.func, id.mult)(videoElem.playbackRate)
+		let localTime = videoElem.currentTime
+		if (!is.numeric(localTime)) {
+			return
+		}
+
+		const lag = (localTime - startTime) / 2
+		const remoteTime = timeObjToSeconds(time) + lag
+		if (lastLag === none) lastLag = lag
+
+		let delta = remoteTime - localTime
+		pushDelta(delta)
+
 		const jitter = (lag - lastLag)/lastLag
 
-		const playerTime = timeObjToSeconds(time) + lag
+		temperature = Math.pow(Math.max(0, Math.min(1, 1 - (1/Math.abs(delta*512)))), 4)
+		temperature = Math.abs(1 - (0.9*(1-temperature)))
+		temperature = (7*lastTemperature + temperature) / 8
 
-		delta = playerTime - videoElem.currentTime
-		temperature = (7*lastTemperature + Math.max(0, Math.min(1, Math.pow(1 - (1/Math.abs(delta*512)), 4)))) / 8
+		const maxJitter = temperature + 0.2
 
-		let playbackRate = (lastPlaybackRate + (playerTime - lastPlayerTime) / ((videoElem.currentTime - lastTime) / videoElem.playbackRate)) / 2
-
-		const adjustedMinDelta = minDelta*playbackRate
-		const maxJitter = Math.sqrt(Math.abs(temperature)) + 0.1
+		timeStep = 1/4
+		let playbackRate = (2*timeStep) / ((-delta*temperature) + (2*timeStep)) * speed
 
 		if (jitter > maxJitter || jitter < -maxJitter) {
 			// bad network - don't re-sync
-			videoElem.playbackRate = playbackRate = (lastPlaybackRate + playbackRate) / 2
-			delta = undefined
-			timeStep = 1/16
+			videoElem.playbackRate = speed
+			delta = none
 		}
-		else if (!isFinite(playbackRate) || delta > adjustedMinDelta || delta < -adjustedMinDelta) {
+		else if (!is.numeric(playbackRate) || playbackRate >= maxPlaybackRate || playbackRate <= minPlaybackRate) {
 			// quick re-sync
-			videoElem.currentTime += delta
-			videoElem.playbackRate = lastPlaybackRate = speed
-			console.log(`jump to ${ videoElem.currentTime + delta } seconds`)
-			timeStep = 1
+			videoElem.currentTime = localTime += delta
+			videoElem.playbackRate = speed
+			console.log(`jump to ${ localTime } seconds`)
+			timeStep = 2
 			temperature = 1
 		}
-		else if (isFinite(playbackRate)) {
+		else if (is.numeric(playbackRate)) {
 			// smooth re-sync
-			timeStep = 1/4
 
-			const k = delta * (temperature + lastTemperature) / 2
 			temperature = temperature * 0.9
 
-			const t = timeStep * playbackRate
-			const p = (t+k)/t
-			if (isFinite(p))
-				videoElem.playbackRate = p*speed
+			videoElem.playbackRate = playbackRate
 		}
 
 		vm.stats.delta = Math.round(delta * 1e6) / 1e3
@@ -181,12 +285,15 @@ export default function ({ get, vfs2uri }) {
 		vm.stats.jitter = Math.round(jitter * 1e3) / 1e3
 		vm.stats.temperature = Math.round(temperature * 100)
 
-		lastTime = videoElem.currentTime
-		lastPlayerTime = playerTime
-		lastLag = (3*lastLag + lag) / 4
+		vm.currentTime = Math.round(localTime)
+		vm.duration = Math.round(videoElem.duration)
+		vm.progress = vm.currentTime / vm.duration
+		vm.speed = speed
+
+		lastTime = localTime
+		lastPlayerTime = remoteTime
+		lastLag = (7*lastLag + lag) / 8
 		lastTemperature = temperature
-		if (isFinite(playbackRate))
-			lastPlaybackRate = playbackRate
 	}
 
 
@@ -195,16 +302,26 @@ export default function ({ get, vfs2uri }) {
 		Promise.all([
 			getLabels().
 			then(getActivePlayer).
-				then(maybe(player => {
+				then(If.defined(player => {
 					const startTime = videoElem.currentTime
 					getTime(player).
-						then(maybe(properties => {
+						then(If.defined(properties => {
 							updateTime(properties, startTime)
 						}))
-				}), () => {
+					vm.stopped = false
+				}, () => {
 					//nothing playing
-					vm.src = undefined
-				})
+					vm.src = ''
+					vm.stats = {}
+					vm.currentTime = 0
+					vm.duration = 0
+					vm.src = ''
+					vm.speed = 0
+					vm.stopped = true
+					videoElem.playbackRate = 0
+					timeStep = 1/2
+				})).
+			then(getVolume)
 		]).
 		then(success => {
 				waitSeconds(timeStep)().then(loop)

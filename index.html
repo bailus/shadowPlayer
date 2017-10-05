@@ -15,22 +15,34 @@
 <script src="assets/advancedSettings.js"></script>
 <script>
 
-	advancedSettings.debug = true
+advancedSettings.debug = true
 
-	if (!advancedSettings.jsonRPC) advancedSettings.jsonRPC = {}
-	//advancedSettings.jsonRPC.debug = true // Generates lots of messages (all network requests and responses are output to console)
+if (!advancedSettings.jsonRPC) advancedSettings.jsonRPC = {}
+//advancedSettings.jsonRPC.debug = true // Generates lots of messages (all network requests and responses are output to console)
 
-	if (!advancedSettings.xbmc) advancedSettings.xbmc = {}
-	advancedSettings.xbmc.debug = true
+if (!advancedSettings.xbmc) advancedSettings.xbmc = {}
+advancedSettings.xbmc.debug = true
 
-	System.config({
-		"transpiler": "babel",
-		"map": {
-			"babel-polyfill": "npm:babel-polyfill",
-			"whatwg-fetch": "npm:whatwg-fetch",
-			"vue": "./jspm_packages/npm/vue@2.4.4/dist/vue.js"
+System.config({
+	paths: {
+		//"npm:": "jspm_packages/npm/",
+		//"github:": "jspm_packages/github/",
+		"shadowPlayer/": "js/"
+	},
+	transpiler: "babel",
+	packages: {
+		"shadowPlayer": {
+			"main": "main.js",
+			"format": "esm"
 		}
-	})
-	System.import("./js/main")
+	},
+	map: {
+		"vue": "./jspm_packages/npm/vue@2.4.4/dist/vue.js",
+		"vue-touch": "npm:vue-touch-easyhi",
+		"vue-slider-component": "npm:vue-slider-component"
+	}
+})
+
+System.import("shadowPlayer")
 
 </script>
