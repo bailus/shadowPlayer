@@ -7,16 +7,17 @@
 	--fg_secondary: #3498db;
 
 	--bg_overlay_alpha: 0.6;
-	--bg_overlay: rgba(0, 0, 0, var(--bg_overlay_alpha));
+	--bg_overlay: rgba(16, 16, 24, var(--bg_overlay_alpha));
 
 	--bg_stats_alpha: 0.9;
 	--bg_stats: rgba(0, 0, 0, var(--bg_stats_alpha));
 
 	--bg_background: rgb(0, 0, 0);
 
-	--animation_speed: 0.5s;
-	--slide_speed:var(--animation_speed);
-	--fade_speed:calc(var(--animation_speed) / 2);
+	--animation_slow: 0.5s;
+	--animation_fast: calc(var(--animation_slow) / 2);
+	--slide_speed:var(--animation_slow);
+	--fade_speed:calc(var(--animation_fast) / 2);
 
 	--margin_vertical: 32px;
 	--margin_horizontal: 64px;
