@@ -1,6 +1,7 @@
 import Vue from "vue"
 import VueTouch from "vue-touch"
 import VueSlider from "vue-slider-component"
+import VueIcon from "vue-icon-component"
 
 import { seconds2shortstring } from "./util.js"
 
@@ -73,10 +74,14 @@ export default function ({ get, vfs2uri }) {
 			speed: 0,
 			stopped: true,
 			remoteVolume:100,
+			remoteMute:false,
+			localVolume:100,
+			localMute:true,
 			deltaHistory: []
 		},
 		components: {
-			vueSlider: VueSlider
+			slider: VueSlider,
+			icon: VueIcon
 		},
 		methods: {
 			action: a => get({
@@ -92,14 +97,40 @@ export default function ({ get, vfs2uri }) {
 					'value': { 'time': secondsToTimeObj(s) }
 				}
 			})),
+			setRemoteVolume: async v => {
+				vm.remoteMute = await get({
+					method: 'Application.SetMute',
+					params: {
+						'mute': v === 0
+					}
+				})
+				vm.remoteVolume = await get({
+					method: 'Application.SetVolume',
+					params: {
+						'volume': v
+					}
+				})
+			},
+			setLocalVolume: v => {
+				videoElem.volume = v/100
+			},
+			remoteMuteToggle: async () => {
+				vm.remoteMute = await get({
+					method: 'Application.SetMute',
+					params: {
+						'mute': !vm.remoteMute
+					}
+				})
+			},
 			seconds2shortstring: seconds2shortstring,
 			log: x => { console.log(x); return x },
-			suffix: suffix
+			suffix: suffix,
+			toggle: key => () => { vm[key] = !vm[key]; return vm[key] }
 		},
 		template: `<div id="videoPlayer"
 					:class="{ hideGUI: (hideGUI && speed < 1.5 && speed > 0.75), hideStats: hideStats, stopped: stopped }">
 
-				<video id="xbmc-video" autoplay
+				<video id="xbmc-video" autoplay :muted="localMute"
 					:src="labels['Player.File']"
 					v-touch:tap="evt => (hideGUI = !hideGUI)"
 					v-touch:dbltap="evt => (hideStats = !hideStats)"></video>
@@ -148,21 +179,49 @@ export default function ({ get, vfs2uri }) {
 
 				<div class="controls">
 					<div class="progressBar">
-						<vueSlider :value.sync="currentTime" :max="duration" :disabled="stopped"
+						<slider :value.sync="currentTime" :lazy="true" v-on:callback="seek" :disabled="stopped"
 							:formatter="seconds2shortstring"
-							v-on:callback="seek" :lazy="true" width="100%"
-							:speed="0" :tooltip="hideGUI && speed < 1.5 && speed > 0.75 ? 'false' : 'always'"></vueSlider>
+							:tooltip="hideGUI && speed < 1.5 && speed > 0.75 ? 'false' : 'always'"
+							:max="duration" :speed="0"
+							width="100%"></slider>
 					</div>
 				</div>
 
 				<div class="volumeControls">
-					<div class="volumeControl">
-						<vueSlider :value.sync="remoteVolume" :max="100" direction="vertical" tooltip-dir="right" height="100%" tooltip="hover" :formatter="suffix('%')" width="6"></vueSlider>
+					<div class="volumeControl remote">
+						<slider :value.sync="remoteVolume" v-on:callback="setRemoteVolume"
+							:formatter="suffix('%')" :disabled="remoteMute"
+							tooltip="hover"
+						 	:max="100"
+							direction="vertical" tooltip-dir="right"
+							width="6" height="100%"></slider>
+						<div class="iconBox">
+							<icon label="Remote Volume" v-touch:tap="remoteMuteToggle">
+								<icon name="television" scale="1.5"></icon>
+								<icon name="ban" v-show="remoteMute" scale="2"></icon>
+							</icon>
+						</div>
+					</div>
+					<div class="volumeControl local">
+						<slider :value.sync="localVolume" v-on:callback="setLocalVolume"
+							:formatter="suffix('%')" :disabled="localMute"
+							tooltip="hover"
+						 	:max="100"
+							direction="vertical"
+							width="6" height="100%"></slider>
+						<div class="iconBox">
+							<icon label="Local Volume" v-touch:tap="toggle('localMute')">
+								<icon name="mobile" scale="1.75"></icon>
+								<icon name="ban" v-show="localMute" scale="2"></icon>
+							</icon>
+						</div>
 					</div>
 				</div>
 
 			</div>`
 	})
+
+	const videoElem = document.getElementById('xbmc-video')
 
 
 	const getLabels = () => get({
@@ -197,15 +256,16 @@ export default function ({ get, vfs2uri }) {
 		vm.labels = labels
 	})
 
-	const getVolume = () => get({
-		'method': 'Application.GetProperties',
-		'params': {
-			'properties': [ 'volume', 'muted' ]
-		}
-	}).then(({ volume, muted }) => {
-		vm.remoteVolume = volume
-		vm.muted = muted
-	})
+	const getVolume = async function() {
+		let o = await get({
+			'method': 'Application.GetProperties',
+			'params': {
+				'properties': [ 'volume', 'muted' ]
+			}
+		})
+		vm.remoteVolume = o.volume
+		vm.remoteMute = o.muted
+	}
 
 
 
@@ -222,7 +282,6 @@ export default function ({ get, vfs2uri }) {
 
 
 
-	const videoElem = document.getElementById('xbmc-video')
 	const maxPlaybackRate = 128
 	const minPlaybackRate = 1/16
 	let timeStep = 1

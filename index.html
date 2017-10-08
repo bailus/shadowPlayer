@@ -37,12 +37,15 @@ System.config({
 		}
 	},
 	map: {
+		"babel-polyfill": "npm:babel-polyfill",
 		"vue": "./jspm_packages/npm/vue@2.4.4/dist/vue.js",
 		"vue-touch": "npm:vue-touch-easyhi",
-		"vue-slider-component": "npm:vue-slider-component"
+		"vue-slider-component": "npm:vue-slider-component",
+		"vue-icon-component": "npm:vue-awesome"
 	}
 })
 
+System.import("babel-polyfill")
 System.import("shadowPlayer")
 
 </script>

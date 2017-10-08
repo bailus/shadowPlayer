@@ -27,12 +27,15 @@
 	--control_height: 42px;
 
 	--stats_width: 256px;
+	--image_height: 256px;
+	--icon_size: 32px;
 
 	--volume_height: 256px;
 	--volume_slider_width: 22px;
-	--volume_padding: calc(calc(var(--control_height) - var(--volume_slider_width)) / 2);
+	--volume_padding_vertical: calc(calc(var(--control_height) - var(--volume_slider_width)) / 2);
+	--volume_padding_horizontal: calc(var(--icon_size) / 2);
+	--volume_padding: var(--volume_padding_vertical) var(--volume_padding_horizontal);
 
-	--image_height: 256px;
 }
 
 body {
@@ -90,7 +93,7 @@ body {
 	bottom:calc(var(--margin_vertical) + var(--control_height) + var(--padding));
 	width:auto;
 	height:var(--overlay_height);
-	padding-left:var(--margin_horizontal);
+	padding-left:calc(var(--control_height) / 8 + var(--margin_horizontal));
 	padding-right:calc(var(--overlay_height) * 0.75);
 
 	flex-direction:row;
@@ -114,7 +117,7 @@ body {
 	right:var(--margin_horizontal);
 	bottom:var(--margin_vertical);
 	height:var(--control_height);
-	padding:0 calc(var(--control_height) / 2);
+	padding:0 calc(var(--control_height) / 2 - 8px);
 
 	flex-direction:row;
 
@@ -142,20 +145,23 @@ body {
 
 	background-color:var(--bg_overlay);
 
-	border-radius:calc(var(--volume_slider_width) / 2 + var(--volume_padding));
+	border-radius:calc(var(--volume_slider_width) / 2 + var(--volume_padding_vertical));
 }
 #videoPlayer .volumeControl {
 	display:flex;
 	flex-direction:column;
 	justify-content:stretch;
-	width:var(--volume_slider_width);
+	width:var(--icon_size);
 	flex-grow:100;
+	align-items: center;
 	margin:var(--volume_padding);
+	padding-top: var(--volume_padding_vertical);
 }
 #videoPlayer .volumeControl + .volumeControl {
 	margin-left:0;
 }
-#videoPlayer .volumeControl .vue-slider-component {
+#videoPlayer .volumeControl .iconBox {
+	margin-top: calc(var(--volume_padding_vertical) / 2);
 }
 
 #videoPlayer .stats {
@@ -283,4 +289,13 @@ body {
 
 #videoPlayer .playingNext .endTime:not(:empty):before {
 	content: "Ends at: ";
+}
+
+.iconBox {
+	width:32px;
+	height:32px;
+	display:flex;
+	justify-content:center;
+	align-items:center;
+	flex-shrink:0;
 }
