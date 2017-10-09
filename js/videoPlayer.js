@@ -3,54 +3,31 @@ import VueTouch from "vue-touch"
 import VueSlider from "vue-slider-component"
 import VueIcon from "vue-icon-component"
 
-import { seconds2shortstring } from "./util.js"
+import {
+	If, is, id,
+	waitSeconds,
+	prefix, suffix
+} from "./util.js"
 
 
-const constant = x => y => x
-const id = {
-	func: x => x,
-	none: constant(),
-	mult: constant(1),
-	add:  constant(0)
+export const prefixImage = prefix('image://')
+export const prefixZero = prefix('0')
+
+export const leadingZero = If.numeric(If.lessThanTen(prefixZero, toString), id.func)
+
+export function seconds2shortstring (seconds) {
+	const format = n => (n < 10 ? '0' : '')+Math.floor(n)
+
+	const s = Math.abs(seconds)
+	const h = s >= 3600 && Math.floor(s/3600)
+	const mm = format((s%3600)/60)
+	const ss = format(s%60)
+
+	return (seconds < 0 ? '-' : '') +
+			(h === false ? '' : `${h}:`) + `${mm}:${ss}`
 }
-const none = id.none()
-
-const mapObject = f => x => {
-	const o = {}
-	Object.keys(x).forEach(key => { o[key] = f(x[key], key, x) })
-	return o
-}
-
-const pushLimitN = (n=1) => (arr=[]) => x => {
-	arr.push(x)
-	if (arr.length > n)
-		arr.splice(0, 1)
-}
-const pushLimit = pushLimitN(10)
-
-const is = {}
-is.truthy = x => ( x == true )
-is.defined = x => ( x !== none )
-is.numeric = x => ( !isNaN(parseFloat(x)) && isFinite(x) )
-is.lessThanTen = x => ( x < 10 )
-
-const If = cond => (t=id.func, f=id.none) => x => ( cond(x) ? t(x) : f(x) )
-Object.assign(If, mapObject(If)(is))
-
-const prefix = a => b => ([ a, b ]).join('')
-const suffix = a => b => ([ b, a ]).join('')
-const prefixImage = prefix('image://')
-const prefixZero = prefix('0')
-const toString = x => ''+x
-const toNumeric = x => 0+x
-const leadingZero = If.numeric(If.lessThanTen(prefixZero, toString), id.func)
-
-const timeObjToSeconds = o => ((((o.hours*60) + o.minutes)*60) + o.seconds)+(o.milliseconds/1e3)
-const secondsToTimeObj = s => ({ 'hours': Math.floor(s/3600), 'minutes': Math.floor(s/60)%60, 'seconds': s%60 })
-
-const waitSeconds = t => x => new Promise(resolve => { window.setTimeout(() => resolve(x), 1000*t) })
-const waitAnimationFrame = x =>  new Promise(resolve => { window.requestAnimationFrame(() => resolve(x)) })
-
+export const timeObjToSeconds = o => ((((o.hours*60) + o.minutes)*60) + o.seconds)+(o.milliseconds/1e3)
+export const secondsToTimeObj = s => ({ 'hours': Math.floor(s/3600), 'minutes': Math.floor(s/60)%60, 'seconds': s%60 })
 
 
 Vue.use(VueTouch)
@@ -76,8 +53,7 @@ export default function ({ get, vfs2uri }) {
 			remoteVolume:100,
 			remoteMute:false,
 			localVolume:100,
-			localMute:true,
-			deltaHistory: []
+			localMute:true
 		},
 		components: {
 			slider: VueSlider,
@@ -137,10 +113,10 @@ export default function ({ get, vfs2uri }) {
 
 				<div class="clock">
 					<span class="clockTime">{{ labels['System.Time'] }}</span>
-					<span class="finishTime">{{ labels['Player.FinishTime'] }}</span>
+					<span class="finishTime" v-show="!stopped">{{ labels['Player.FinishTime'] }}</span>
 				</div>
 
-				<div class="playingNow" v-touch:tap="evt => action('playpause')">
+				<div class="playingNow" v-show="!stopped">
 					<img class="thumbnail" :src="labels['Player.Thumb']"></img>
 					<div class="text">
 						<div class="line1">
@@ -156,7 +132,7 @@ export default function ({ get, vfs2uri }) {
 					</div>
 				</div>
 
-				<div class="playingNext">
+				<div class="playingNext" v-show="!stopped">
 					<div class="text">
 						<div class="line1">
 						</div>
@@ -177,9 +153,15 @@ export default function ({ get, vfs2uri }) {
 					<dd>{{ stats.temperature }}%</dd>
 				</dl>
 
-				<div class="controls">
+				<div class="controls" v-show="!stopped">
+					<div class="button">
+						<icon label="Play/Pause" v-touch:tap="evt => action('playpause')" scale="1.6">
+							<icon name="play" v-show="speed === 0 || stopped"></icon>
+							<icon name="pause" v-show="speed > 0 && !stopped" scale="0.8"></icon>
+						</icon>
+					</div>
 					<div class="progressBar">
-						<slider :value.sync="currentTime" :lazy="true" v-on:callback="seek" :disabled="stopped"
+						<slider :value.sync="currentTime" :lazy="true" v-on:callback="seek"
 							:formatter="seconds2shortstring"
 							:tooltip="hideGUI && speed < 1.5 && speed > 0.75 ? 'false' : 'always'"
 							:max="duration" :speed="0"
@@ -289,9 +271,7 @@ export default function ({ get, vfs2uri }) {
 	let lastTemperature = 1
 	let lastPlayerTime = 0
 	let lastTime = 0
-	let lastLag = none
-	const deltaHistory = []
-	const pushDelta = pushLimit(vm.deltaHistory)
+	let lastLag = id.none
 	const updateTime = ({ time, speed }, startTime) => {
 
 		let localPlaybackRate = If.numeric(id.func, id.mult)(videoElem.playbackRate)
@@ -302,10 +282,9 @@ export default function ({ get, vfs2uri }) {
 
 		const lag = (localTime - startTime) / 2
 		const remoteTime = timeObjToSeconds(time) + lag
-		if (lastLag === none) lastLag = lag
+		if (lastLag === id.none) lastLag = lag
 
 		let delta = remoteTime - localTime
-		pushDelta(delta)
 
 		const jitter = (lag - lastLag)/lastLag
 
@@ -321,7 +300,7 @@ export default function ({ get, vfs2uri }) {
 		if (jitter > maxJitter || jitter < -maxJitter) {
 			// bad network - don't re-sync
 			videoElem.playbackRate = speed
-			delta = none
+			delta = id.none
 		}
 		else if (!is.numeric(playbackRate) || playbackRate >= maxPlaybackRate || playbackRate <= minPlaybackRate) {
 			// quick re-sync
@@ -361,25 +340,25 @@ export default function ({ get, vfs2uri }) {
 		Promise.all([
 			getLabels().
 			then(getActivePlayer).
-				then(If.defined(player => {
-					const startTime = videoElem.currentTime
-					getTime(player).
-						then(If.defined(properties => {
-							updateTime(properties, startTime)
-						}))
-					vm.stopped = false
-				}, () => {
-					//nothing playing
-					vm.src = ''
-					vm.stats = {}
-					vm.currentTime = 0
-					vm.duration = 0
-					vm.src = ''
-					vm.speed = 0
-					vm.stopped = true
-					videoElem.playbackRate = 0
-					timeStep = 1/2
-				})).
+			then(If.object(player => {
+				const startTime = videoElem.currentTime
+				getTime(player).
+					then(If.defined(properties => {
+						updateTime(properties, startTime)
+					}))
+				vm.stopped = false
+			}, () => {
+				//nothing playing
+				vm.src = ''
+				vm.stats = {}
+				vm.currentTime = 0
+				vm.duration = 0
+				vm.src = ''
+				vm.speed = 0
+				vm.stopped = true
+				videoElem.playbackRate = 0
+				timeStep = 1/2
+			})).
 			then(getVolume)
 		]).
 		then(success => {
