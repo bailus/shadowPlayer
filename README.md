@@ -86,6 +86,9 @@ A self-contained build will be saved into the `./build` folder.
 
 
 ### Stack
+#### Artwork
+ * [Estuary (Kodi skin)](https://github.com/phil65/skin.estuary) (Menu icons)
+
 #### Libraries
  * [Vue.js](https://vuejs.org/) - User Interface
    * [Awesome Vue.js](https://github.com/vuejs/awesome-vue) - Icons

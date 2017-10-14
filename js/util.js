@@ -17,7 +17,7 @@ export const compose = f => g => x => f(g(x))
 
 export const mapArray = f => a => Array.prototype.map.call(a, f)
 export const flattenArray = a => Array.prototype.concat.apply([], a)
-export const bindArray = f => compose(flattenArray, mapArray(f))
+export const bindArray = f => compose(flattenArray)(mapArray(f))
 
 export const mapObject = f => x => {
 	const o = {}
@@ -42,6 +42,7 @@ export const pushLimitN = (n=1) => (arr=[]) => x => {
 
 export const is = {
 	truthy: x => ( x == true ),
+	notEmpty: x => ( x !== undefined && x.length > 0 ),
 	defined: x => ( x !== id.none ),
 	numeric: x => ( !isNaN(parseFloat(x)) && isFinite(x) ),
 	lessThanTen: x => ( x < 10 ),

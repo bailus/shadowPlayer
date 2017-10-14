@@ -5,6 +5,7 @@ import VueIcon from "vue-icon-component"
 
 import {
 	If, is, id,
+	bindArray, mapArray, flattenArray,
 	waitSeconds,
 	prefix, suffix
 } from "./util.js"
@@ -37,7 +38,10 @@ VueTouch.registerCustomEvent('dbltap', { type: 'tap', taps: 2 })
 export default function ({ get, vfs2uri }) {
 	const getActivePlayer = () => get({ 'method': 'Player.GetActivePlayers' }).then(players => players[0])
 
-	const art2uri = If.truthy(vfs => vfs2uri(prefixImage(encodeURIComponent(vfs))), id.func)
+	const art2uri = If.notEmpty(vfs => vfs2uri(prefixImage(encodeURIComponent(vfs))))
+
+	const iconBase = new URL('skin.estuary/media/', window.location.href).href
+	const icon2uri = If.notEmpty(x => (new URL(x, iconBase)).href)
 
 	const vm = new Vue({
 		el: '#videoPlayer',
@@ -53,7 +57,8 @@ export default function ({ get, vfs2uri }) {
 			remoteVolume:100,
 			remoteMute:false,
 			localVolume:100,
-			localMute:true
+			localMute:true,
+			menuLabels:{items:[]}
 		},
 		components: {
 			slider: VueSlider,
@@ -74,12 +79,6 @@ export default function ({ get, vfs2uri }) {
 				}
 			})),
 			setRemoteVolume: async v => {
-				vm.remoteMute = await get({
-					method: 'Application.SetMute',
-					params: {
-						'mute': v === 0
-					}
-				})
 				vm.remoteVolume = await get({
 					method: 'Application.SetVolume',
 					params: {
@@ -101,10 +100,14 @@ export default function ({ get, vfs2uri }) {
 			seconds2shortstring: seconds2shortstring,
 			log: x => { console.log(x); return x },
 			suffix: suffix,
-			toggle: key => () => { vm[key] = !vm[key]; return vm[key] }
+			toggle: key => () => { vm[key] = !vm[key]; return vm[key] },
+			vfs2uri: vfs2uri,
+			art2uri: art2uri,
+			icon2uri: icon2uri
 		},
 		template: `<div id="videoPlayer"
-					:class="{ hideGUI: (hideGUI && speed < 1.5 && speed > 0.75), hideStats: hideStats, stopped: stopped }">
+					:data-currentWindow="menuLabels.system['System.CurrentWindow']"
+					:class="{ hideGUI: (hideGUI && speed < 1.5 && speed > 0.75), hideStats: hideStats, stopped: stopped, hideMenu:  (menuLabels.items[0] === undefined) }">
 
 				<video id="xbmc-video" autoplay :muted="localMute"
 					:src="labels['Player.File']"
@@ -200,10 +203,38 @@ export default function ({ get, vfs2uri }) {
 					</div>
 				</div>
 
+				<div class="menu" :data-view="menuLabels.ViewMode">
+					<div class="menuHead">
+						<div class="menuTitle">
+							<span class="currentWindow" v-if="menuLabels.system['System.CurrentWindow']">{{ menuLabels.system['System.CurrentWindow'] }}</span>
+							<span class="folderName" v-if="menuLabels['Container.FolderName']">{{ menuLabels['Container.FolderName'] }}</span>
+						</div>
+					</div>
+					<div class="menuBody">
+						<div class="selectedItem">
+							<div class="thumb">
+								<img :src="art2uri(menuLabels.items[0].Thumb) || icon2uri(menuLabels.items[0].ActualIcon)" v-if="menuLabels.items[0] !== undefined"></img>
+							</div>
+							<div class="plot">
+								<span v-if="menuLabels.items[0] !== undefined">{{ menuLabels.items[0].Plot }}</span>
+							</div>
+						</div>
+						<div class="menuItems">
+							<ul class="items">
+								<li v-for="item in menuLabels.items" :style="'order: '+item.offset+';'" :data-order="item.offset">
+									<span class="icon"><img :src="icon2uri(item.Icon) || icon2uri(item.ActualIcon)"></img></span>
+									<span class="label">{{ item.Label }}</span>
+									<span class="label2">{{ item.Label2 }}</span>
+								</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+
 			</div>`
 	})
 
-	const videoElem = document.getElementById('xbmc-video')
+	let videoElem = document.getElementById('xbmc-video')
 
 
 	const getLabels = () => get({
@@ -253,15 +284,146 @@ export default function ({ get, vfs2uri }) {
 
 
 	const getTime = ({ playerid, type }) => get({
-			'method': 'Player.GetProperties',
-			'params': {
-				'playerid': playerid,
-				'properties': [
-					'time', 'speed'
-				]
-			}
-		})
+		'method': 'Player.GetProperties',
+		'params': {
+			'playerid': playerid,
+			'properties': [
+				'time', 'speed'
+			]
+		}
+	})
 
+
+	const getContainer = (containerId='') => get({
+		'method': 'XBMC.GetInfoLabels',
+		'params': {
+			'labels': mapArray(prefix('Container.'))([
+				'Content',
+				'FolderPath',
+				'FolderName',
+				'ViewMode',
+				'SortMethod',
+				'SortOrder',
+				'PluginName',
+				'PluginCategory',
+				'ShowPlot',
+				'ShowTitle',
+				'Property(addoncategory)',
+				'Property(reponame)',
+				'ViewCount'
+			]).
+			concat(mapArray(prefix(`Container(${ containerId  }).`))([
+				'NumPages',
+				'NumItems',
+				'CurrentPage',
+				'CurrentItem',
+				'Position',
+				'Column',
+				'Row',
+				'Totaltime',
+				'TotalWatched',
+				'TotalUnWatched'
+			])).
+			concat(mapArray(prefix(`Container().`))([
+				'NumPages',
+				'NumItems',
+				'CurrentPage',
+				'CurrentItem',
+				'Position',
+				'Column',
+				'Row',
+				'Totaltime',
+				'TotalWatched',
+				'TotalUnWatched'
+			]))
+		}
+	})
+
+	const getListItems = (containerId='') => offsets => {
+		const o = {
+			'method': 'XBMC.GetInfoLabels',
+			'params': {
+			'labels': bindArray(offset => mapArray(prefix(`Container(${ containerId  }).ListItem(${ offset }).`))([
+					'Label',
+					'Label2',
+					'Icon',
+					'ActualIcon',
+					'Thumb',
+					'Plot'
+				]))(offsets)
+			}
+		}
+		return get(o)
+	}
+
+	const range = (from, to) => {
+		const a = []
+		for (let i = from; i < to+1; i++)
+			a.push(i)
+		return a
+	}
+
+	const getSystemLabels = () => get({
+		'method': 'XBMC.GetInfoLabels',
+		'params': {
+			'labels': [
+				'System.CurrentWindow',
+				'System.CurrentControl',
+				'System.CurrentControlId'
+			]
+		}
+	})
+
+	const getBooleans = () => get({
+		'method': 'XBMC.GetInfoBooleans',
+		'params': {
+			'booleans': [
+				'System.IsFullscreen',
+				'System.CurrentControlId',
+				'Container.HasParent'
+			]
+		}
+	})
+
+
+	const getContainerItems = async (n=7) => {
+		const booleans = await getBooleans()
+		const system = await getSystemLabels()
+		let controlId = system['System.CurrentControlId']
+		const container = await getContainer(controlId)
+
+		if (container[`Container(${ controlId }).CurrentItem`] === '')
+			controlId = ''
+
+		const pos = parseInt(container[`Container(${ controlId }).CurrentItem`]) || parseInt(container[`Container().CurrentItem`])
+		const numItems = parseInt(container[`Container(${ controlId }).NumItems`]) || parseInt(container[`Container().NumItems`])
+		const h = booleans['Container.HasParent'] ? 0 : 1
+		container.offsets = range( Math.max(-pos+h, -n), Math.min(numItems-pos, n) )
+
+		let itemLabels = []
+		if (container.offsets.length > 0)
+			itemLabels = await getListItems(controlId)(container.offsets)
+		
+		const items = {}
+		Object.keys(itemLabels).forEach(key => {
+			const offset = key.match(/.*\(.*\).*\((.*)\)/)[1]
+			if (items[offset] === undefined)
+				items[offset] = {}
+			const k = key.split('.')[2]
+			const value = itemLabels[key]
+			items[offset][k] = value
+		})
+		Object.keys(items).forEach(offset => {
+			items[offset].offset = offset
+		})
+		container.itemLabels = itemLabels
+		container.items = items
+		container.system = system
+		container.booleans = booleans
+
+		vm.menuLabels = container
+		return container
+	}
 
 
 	const maxPlaybackRate = 128
@@ -335,32 +497,32 @@ export default function ({ get, vfs2uri }) {
 	}
 
 
-	// One loop to rule them all (ie. the game loop)
+	// Game Loops
+
+	// Video Player loop
 	const loop = () => {
-		Promise.all([
-			getLabels().
-			then(getActivePlayer).
-			then(If.object(player => {
-				const startTime = videoElem.currentTime
-				getTime(player).
-					then(If.defined(properties => {
-						updateTime(properties, startTime)
-					}))
-				vm.stopped = false
-			}, () => {
-				//nothing playing
-				vm.src = ''
-				vm.stats = {}
-				vm.currentTime = 0
-				vm.duration = 0
-				vm.src = ''
-				vm.speed = 0
-				vm.stopped = true
-				videoElem.playbackRate = 0
-				timeStep = 1/2
-			})).
-			then(getVolume)
-		]).
+		getLabels().
+		then(getActivePlayer).
+		then(If.object(player => {
+			videoElem = document.getElementById('xbmc-video')
+			const startTime = videoElem.currentTime
+			getTime(player).
+				then(If.defined(properties => {
+					updateTime(properties, startTime)
+				}))
+			vm.stopped = false
+		}, () => {
+			//nothing playing
+			vm.src = ''
+			vm.stats = {}
+			vm.currentTime = 0
+			vm.duration = 0
+			vm.src = ''
+			vm.speed = 0
+			vm.stopped = true
+			videoElem.playbackRate = 0
+			timeStep = 1/2
+		})).
 		then(success => {
 				waitSeconds(timeStep)().then(loop)
 			},
@@ -371,5 +533,21 @@ export default function ({ get, vfs2uri }) {
 	}
 	loop()
 
+
+	// The other loop
+	const menuLoop = () => {
+		Promise.all([
+			getVolume(),
+			getContainerItems()
+		]).
+		then(success => {
+				waitSeconds(0.1)().then(menuLoop)
+			},
+			error => {
+				console.error(error)
+				waitSeconds(1)().then(menuLoop)
+			})
+	}
+	menuLoop()
 
 }

@@ -1,0 +1,3 @@
+[submodule "skin.estuary"]
+	path = skin.estuary
+	url = https://github.com/phil65/skin.estuary.git
