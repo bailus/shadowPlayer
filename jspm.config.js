@@ -688,12 +688,12 @@ SystemJS.config({
     },
     "npm:magic-string@0.19.1": {
       "map": {
-        "vlq": "npm:vlq@0.2.2"
+        "vlq": "npm:vlq@0.2.3"
       }
     },
     "npm:magic-string@0.16.0": {
       "map": {
-        "vlq": "npm:vlq@0.2.2"
+        "vlq": "npm:vlq@0.2.3"
       }
     },
     "npm:create-ecdh@4.0.0": {

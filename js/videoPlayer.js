@@ -34,14 +34,46 @@ export const secondsToTimeObj = s => ({ 'hours': Math.floor(s/3600), 'minutes': 
 Vue.use(VueTouch)
 VueTouch.registerCustomEvent('dbltap', { type: 'tap', taps: 2 })
 
+const labelStyles = {
+	'COLOR': 'color:$1',
+	'B': 'font-weight:bold'
+}
+const parseLabel = l => {
+	Object.keys(labelStyles).forEach(key => {
+		l = l.replace(new RegExp(`\\[${ key } ?(.*?)\\]`, 'gi'), `<span style="${ labelStyles[key] }">`)
+		l = l.replace(new RegExp(`\\[\/${ key }\\]`, 'gi'), '</span>')
+	})
+	return l
+}
 
-export default function ({ get, vfs2uri }) {
+export default function ({ get }) {
 	const getActivePlayer = () => get({ 'method': 'Player.GetActivePlayers' }).then(players => players[0])
 
-	const art2uri = If.notEmpty(vfs => vfs2uri(prefixImage(encodeURIComponent(vfs))))
+	const vfs2uri = If.notEmpty((vfs, type) => {
+		let vfsUrl = undefined
+		try {
+			vfsUrl = new URL(vfs)
+		} catch(e) { //relative URL
+			return new URL(vfs, new URL('skin.estuary/media/', window.location.href).href).href
+		}
 
-	const iconBase = new URL('skin.estuary/media/', window.location.href).href
-	const icon2uri = If.notEmpty(x => (new URL(x, iconBase)).href)
+		let href = vfsUrl.href
+
+		const vfsProtocol = vfsUrl.protocol
+
+		let path = '/vfs/'
+		if (vfsProtocol === 'image:') {
+			path = '/image/'
+		}
+		if (vfsProtocol === 'file:') {
+			href = vfs
+		}
+
+		return new URL(encodeURIComponent(href), new URL(path, window.location.href).href).href
+	})
+
+	const art2uri = vfs2uri
+	const icon2uri = vfs2uri
 
 	const vm = new Vue({
 		el: '#videoPlayer',
@@ -103,133 +135,141 @@ export default function ({ get, vfs2uri }) {
 			toggle: key => () => { vm[key] = !vm[key]; return vm[key] },
 			vfs2uri: vfs2uri,
 			art2uri: art2uri,
-			icon2uri: icon2uri
+			icon2uri: icon2uri,
+			parseLabel: parseLabel
 		},
 		template: `<div id="videoPlayer"
 					:data-currentWindow="menuLabels.system['System.CurrentWindow']"
 					:class="{ hideGUI: (hideGUI && speed < 1.5 && speed > 0.75), hideStats: hideStats, stopped: stopped, hideMenu:  (menuLabels.items[0] === undefined) }">
 
-				<video id="xbmc-video" autoplay :muted="localMute"
-					:src="labels['Player.File']"
-					v-touch:tap="evt => (hideGUI = !hideGUI)"
-					v-touch:dbltap="evt => (hideStats = !hideStats)"></video>
-
-				<div class="clock">
-					<span class="clockTime">{{ labels['System.Time'] }}</span>
-					<span class="finishTime" v-show="!stopped">{{ labels['Player.FinishTime'] }}</span>
-				</div>
-
-				<div class="playingNow" v-show="!stopped">
-					<img class="thumbnail" :src="labels['Player.Thumb']"></img>
-					<div class="text">
-						<div class="line1">
-							<span class="show">{{ labels['VideoPlayer.TVShowTitle'] }}</span>
-							<span class="album">{{ labels['MusicPlayer.Album'] }}</span>
-							<span class="year">{{ labels['VideoPlayer.Year'] || labels['MusicPlayer.Year'] }}</span>
-						</div>
-						<div class="line2">
-							<span class="productionCode">{{ labels['VideoPlayer.ProductionCode'] }}</span>
-							<span class="artist">{{ labels['MusicPlayer.Artist'] }}</span>
-							<span class="title">{{ labels['Player.Title'] }}</span>
-						</div>
-					</div>
-				</div>
-
-				<div class="playingNext" v-show="!stopped">
-					<div class="text">
-						<div class="line1">
-						</div>
-						<div class="line2">
-							<span class="title">{{ labels['Player.NextTitle'] }}</span>
-						</div>
-					</div>
-				</div>
-
-				<dl class="stats">
-					<dt>Time Delta</dt>
-					<dd>{{ stats.delta }} ms</dd>
-					<dt>Lag</dt>
-					<dd>{{ stats.lag }} ms</dd>
-					<dt>Jitter</dt>
-					<dd>{{ stats.jitter }}</dd>
-					<dt>Temperature</dt>
-					<dd>{{ stats.temperature }}%</dd>
-				</dl>
-
-				<div class="controls" v-show="!stopped">
-					<div class="button">
-						<icon label="Play/Pause" v-touch:tap="evt => action('playpause')" scale="1.6">
-							<icon name="play" v-show="speed === 0 || stopped"></icon>
-							<icon name="pause" v-show="speed > 0 && !stopped" scale="0.8"></icon>
-						</icon>
-					</div>
-					<div class="progressBar">
-						<slider :value.sync="currentTime" :lazy="true" v-on:callback="seek"
-							:formatter="seconds2shortstring"
-							:tooltip="hideGUI && speed < 1.5 && speed > 0.75 ? 'false' : 'always'"
-							:max="duration" :speed="0"
-							width="100%"></slider>
-					</div>
-				</div>
-
-				<div class="volumeControls">
-					<div class="volumeControl remote">
-						<slider :value.sync="remoteVolume" v-on:callback="setRemoteVolume"
-							:formatter="suffix('%')" :disabled="remoteMute"
-							tooltip="hover"
-						 	:max="100"
-							direction="vertical" tooltip-dir="right"
-							width="6" height="100%"></slider>
-						<div class="iconBox">
-							<icon label="Remote Volume" v-touch:tap="remoteMuteToggle">
-								<icon name="television" scale="1.5"></icon>
-								<icon name="ban" v-show="remoteMute" scale="2"></icon>
-							</icon>
-						</div>
-					</div>
-					<div class="volumeControl local">
-						<slider :value.sync="localVolume" v-on:callback="setLocalVolume"
-							:formatter="suffix('%')" :disabled="localMute"
-							tooltip="hover"
-						 	:max="100"
-							direction="vertical"
-							width="6" height="100%"></slider>
-						<div class="iconBox">
-							<icon label="Local Volume" v-touch:tap="toggle('localMute')">
-								<icon name="mobile" scale="1.75"></icon>
-								<icon name="ban" v-show="localMute" scale="2"></icon>
-							</icon>
-						</div>
-					</div>
-				</div>
-
-				<div class="menu" :data-view="menuLabels.ViewMode">
-					<div class="menuHead">
-						<div class="menuTitle">
+				<header>
+					<section class="left">
+						<div class="title">
 							<span class="currentWindow" v-if="menuLabels.system['System.CurrentWindow']">{{ menuLabels.system['System.CurrentWindow'] }}</span>
 							<span class="folderName" v-if="menuLabels['Container.FolderName']">{{ menuLabels['Container.FolderName'] }}</span>
 						</div>
-					</div>
-					<div class="menuBody">
-						<div class="selectedItem">
-							<div class="thumb">
-								<img :src="art2uri(menuLabels.items[0].Thumb) || icon2uri(menuLabels.items[0].ActualIcon)" v-if="menuLabels.items[0] !== undefined"></img>
+						<div class="title2">
+							<span class="sort">{{ menuLabels['Container.SortMethod'] }}</span>
+						</div>
+					</section>
+					<section class="right">
+						<div class="clockTime">{{ labels['System.Time'] }}</div>
+						<div class="finishTime" v-show="!stopped">{{ labels['Player.FinishTime'] }}</div>
+					</section>
+				</header>
+
+				<section class="media">
+					<video id="xbmc-video" autoplay :muted="localMute"
+						:src="labels['Player.File']"
+						v-touch:tap="evt => (hideGUI = !hideGUI)"
+						v-touch:dbltap="evt => (hideStats = !hideStats)"></video>
+				</section>
+
+				<section class="osd">
+					<dl class="stats">
+						<dt>Time Delta</dt>
+						<dd>{{ stats.delta }} ms</dd>
+						<dt>Lag</dt>
+						<dd>{{ stats.lag }} ms</dd>
+						<dt>Jitter</dt>
+						<dd>{{ stats.jitter }}</dd>
+						<dt>Temperature</dt>
+						<dd>{{ stats.temperature }}%</dd>
+					</dl>
+
+					<div class="playingNow" v-show="!stopped">
+						<img class="thumbnail" :src="labels['Player.Thumb']"></img>
+						<div class="text">
+							<div class="line1">
+								<span class="show">{{ labels['VideoPlayer.TVShowTitle'] }}</span>
+								<span class="album">{{ labels['MusicPlayer.Album'] }}</span>
+								<span class="year">{{ labels['VideoPlayer.Year'] || labels['MusicPlayer.Year'] }}</span>
 							</div>
-							<div class="plot">
-								<span v-if="menuLabels.items[0] !== undefined">{{ menuLabels.items[0].Plot }}</span>
+							<div class="line2">
+								<span class="productionCode">{{ labels['VideoPlayer.ProductionCode'] }}</span>
+								<span class="artist">{{ labels['MusicPlayer.Artist'] }}</span>
+								<span class="title">{{ labels['Player.Title'] }}</span>
 							</div>
 						</div>
-						<div class="menuItems">
-							<ul class="items">
-								<li v-for="item in menuLabels.items" :style="'order: '+item.offset+';'" :data-order="item.offset">
-									<span class="icon"><img :src="icon2uri(item.Icon) || icon2uri(item.ActualIcon)"></img></span>
-									<span class="label">{{ item.Label }}</span>
-									<span class="label2">{{ item.Label2 }}</span>
-								</li>
-							</ul>
+					</div>
+
+					<div class="controls" v-show="!stopped">
+						<div class="button">
+							<icon label="Play/Pause" v-touch:tap="evt => action('playpause')" scale="1.6">
+								<icon name="play" v-show="speed === 0 || stopped"></icon>
+								<icon name="pause" v-show="speed > 0 && !stopped" scale="0.8"></icon>
+							</icon>
+						</div>
+						<div class="progressBar">
+							<slider :value.sync="currentTime" :lazy="true" v-on:callback="seek"
+								:formatter="seconds2shortstring"
+								:tooltip="hideGUI && speed < 1.5 && speed > 0.75 ? 'false' : 'always'"
+								:max="duration" :speed="0"
+								width="100%"></slider>
 						</div>
 					</div>
-				</div>
+
+					<div class="volumeControls">
+						<div class="volumeControl remote">
+							<slider :value.sync="remoteVolume" v-on:callback="setRemoteVolume"
+								:formatter="suffix('%')" :disabled="remoteMute"
+								tooltip="hover"
+								:max="100"
+								direction="vertical" tooltip-dir="right"
+								width="6" height="100%"></slider>
+							<div class="iconBox">
+								<icon label="Remote Volume" v-touch:tap="remoteMuteToggle">
+									<icon name="television" scale="1.5"></icon>
+									<icon name="ban" v-show="remoteMute" scale="2"></icon>
+								</icon>
+							</div>
+						</div>
+						<div class="volumeControl local">
+							<slider :value.sync="localVolume" v-on:callback="setLocalVolume"
+								:formatter="suffix('%')" :disabled="localMute"
+								tooltip="hover"
+								:max="100"
+								direction="vertical"
+								width="6" height="100%"></slider>
+							<div class="iconBox">
+								<icon label="Local Volume" v-touch:tap="toggle('localMute')">
+									<icon name="mobile" scale="1.75"></icon>
+									<icon name="ban" v-show="localMute" scale="2"></icon>
+								</icon>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<section class="menu" :data-view="menuLabels.ViewMode">
+					<aside class="info">
+						<div class="thumb">
+							<img :src="art2uri(menuLabels.items[0].Thumb) || icon2uri(menuLabels.items[0].Icon) || icon2uri(menuLabels.items[0].ActualIcon)" v-if="menuLabels.items[0] !== undefined"></img>
+						</div>
+						<div class="title">
+							<span v-if="menuLabels.items[0]" v-html="parseLabel(menuLabels.items[0].Title || menuLabels.items[0].Label)"></span>
+						</div>
+						<div class="tagline">
+							<span v-if="menuLabels.items[0] && menuLabels.items[0].Tagline" v-html="parseLabel(menuLabels.items[0].Tagline)"></span>
+						</div>
+						<div class="plot">
+							<span v-if="menuLabels.items[0]" v-html="parseLabel(menuLabels.items[0].Plot)"></span>
+						</div>
+					</aside>
+					<ul class="items">
+						<li v-for="item in menuLabels.items" :style="'--item_order: '+item.offset+';'" :data-order="item.offset">
+							<span class="icon"><img :src="vfs2uri(item.Icon || item.ActualIcon || item.Thumb)"></img></span>
+							<span class="label" v-html="parseLabel(item.Label)"></span>
+							<span class="label2" v-html="parseLabel(item.Label2)"></span>
+						</li>
+					</ul>
+				</section>
+
+				<footer>
+					<div class="details">
+						
+					</div>
+				</footer>
 
 			</div>`
 	})
@@ -334,7 +374,8 @@ export default function ({ get, vfs2uri }) {
 				'Row',
 				'Totaltime',
 				'TotalWatched',
-				'TotalUnWatched'
+				'TotalUnWatched',
+				'FanArt'
 			]))
 		}
 	})
@@ -349,7 +390,9 @@ export default function ({ get, vfs2uri }) {
 					'Icon',
 					'ActualIcon',
 					'Thumb',
-					'Plot'
+					'Plot',
+					'Tagline',
+					'Title'
 				]))(offsets)
 			}
 		}
