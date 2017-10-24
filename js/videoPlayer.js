@@ -51,36 +51,57 @@ export default function ({ get }) {
 
 	const vfs2uri = If.notEmpty((vfs, type) => {
 		let vfsUrl = undefined
+		let isRelative = false
 		try {
 			vfsUrl = new URL(vfs)
 		} catch(e) { //relative URL
 			return new URL(vfs, new URL('skin.estuary/media/', window.location.href).href).href
 		}
 
-		let href = vfsUrl.href
-
 		const vfsProtocol = vfsUrl.protocol
-
+		
 		let path = '/vfs/'
-		if (vfsProtocol === 'image:') {
+		if (vfsProtocol === 'file:' || vfsProtocol === 'image:' || vfsProtocol === 'http:' || vfsProtocol === 'resource:' || vfsProtocol === 'special:') {
 			path = '/image/'
 		}
-		if (vfsProtocol === 'file:') {
-			href = vfs
-		}
 
-		return new URL(encodeURIComponent(href), new URL(path, window.location.href).href).href
+		return new URL(encodeURIComponent(vfs), new URL(path, window.location.href).href).href
 	})
 
 	const art2uri = vfs2uri
 	const icon2uri = vfs2uri
+
+	const requestAnimationFrame = f => window.requestAnimationFrame(() => window.requestAnimationFrame(f)) //needed for fadeIn animation
+
+	Vue.component('alt-img', Vue.extend({
+		props: [ 'src', 'altSrc' ],
+		methods: {
+			onError: e => {
+				const dataset = e.target.dataset
+				if (dataset.altSrc !== undefined && dataset.altSrc !== '') {
+					e.target.src = dataset.altSrc
+					if (dataset.altSrc !== e.target.src) {
+						dataset.altSrc = e.target.src
+					} else {
+						dataset.altSrc = ''
+					}
+				}
+			},
+			onLoad: e => {
+				const dataset = e.target.dataset
+				requestAnimationFrame(() => {
+					delete dataset.altSrc
+				})
+			}
+		},
+		template: `<img :src.sync="src" :data-alt-src.sync="altSrc" @error="onError" @load="onLoad"></img>`
+	}))
 
 	const vm = new Vue({
 		el: '#videoPlayer',
 		data: {
 			labels: {},
 			stats: {},
-			hideGUI: true,
 			hideStats: true,
 			currentTime: 0,
 			duration: 0,
@@ -140,7 +161,7 @@ export default function ({ get }) {
 		},
 		template: `<div id="videoPlayer"
 					:data-currentWindow="menuLabels.system['System.CurrentWindow']"
-					:class="{ hideGUI: (hideGUI && speed < 1.5 && speed > 0.75), hideStats: hideStats, stopped: stopped, hideMenu:  (menuLabels.items[0] === undefined) }">
+					:class="{ hideStats: hideStats, stopped: stopped }">
 
 				<header>
 					<section class="left">
@@ -161,7 +182,6 @@ export default function ({ get }) {
 				<section class="media">
 					<video id="xbmc-video" autoplay :muted="localMute"
 						:src="labels['Player.File']"
-						v-touch:tap="evt => (hideGUI = !hideGUI)"
 						v-touch:dbltap="evt => (hideStats = !hideStats)"></video>
 				</section>
 
@@ -178,7 +198,6 @@ export default function ({ get }) {
 					</dl>
 
 					<div class="playingNow" v-show="!stopped">
-						<img class="thumbnail" :src="labels['Player.Thumb']"></img>
 						<div class="text">
 							<div class="line1">
 								<span class="show">{{ labels['VideoPlayer.TVShowTitle'] }}</span>
@@ -194,18 +213,18 @@ export default function ({ get }) {
 					</div>
 
 					<div class="controls" v-show="!stopped">
+						<div class="progressBar">
+							<slider :value.sync="currentTime" :lazy="true" v-on:callback="seek"
+								:formatter="seconds2shortstring"
+								:tooltip="speed < 1.5 && speed > 0.75 ? 'false' : 'always'"
+								:max="duration" :speed="0"
+								width="100%"></slider>
+						</div>
 						<div class="button">
 							<icon label="Play/Pause" v-touch:tap="evt => action('playpause')" scale="1.6">
 								<icon name="play" v-show="speed === 0 || stopped"></icon>
 								<icon name="pause" v-show="speed > 0 && !stopped" scale="0.8"></icon>
 							</icon>
-						</div>
-						<div class="progressBar">
-							<slider :value.sync="currentTime" :lazy="true" v-on:callback="seek"
-								:formatter="seconds2shortstring"
-								:tooltip="hideGUI && speed < 1.5 && speed > 0.75 ? 'false' : 'always'"
-								:max="duration" :speed="0"
-								width="100%"></slider>
 						</div>
 					</div>
 
@@ -244,21 +263,21 @@ export default function ({ get }) {
 				<section class="menu" :data-view="menuLabels.ViewMode">
 					<aside class="info">
 						<div class="thumb">
-							<img :src="art2uri(menuLabels.items[0].Thumb) || icon2uri(menuLabels.items[0].Icon) || icon2uri(menuLabels.items[0].ActualIcon)" v-if="menuLabels.items[0] !== undefined"></img>
+							<alt-img :src="vfs2uri(menuLabels.items[0].Icon || menuLabels.items[0].ActualIcon || menuLabels.items[0].Thumb)" :altSrc="menuLabels.items[0].Icon || menuLabels.items[0].ActualIcon || menuLabels.items[0].Thumb" v-if="menuLabels.items[0] !== undefined" class="fadeIn"></alt-img>
 						</div>
-						<div class="title">
-							<span v-if="menuLabels.items[0]" v-html="parseLabel(menuLabels.items[0].Title || menuLabels.items[0].Label)"></span>
+						<div class="title" v-if="menuLabels.items[0]">
+							<span v-html="parseLabel(menuLabels.items[0].Title || menuLabels.items[0].Label)"></span>
 						</div>
-						<div class="tagline">
-							<span v-if="menuLabels.items[0] && menuLabels.items[0].Tagline" v-html="parseLabel(menuLabels.items[0].Tagline)"></span>
+						<div class="tagline" v-if="menuLabels.items[0] && menuLabels.items[0].Tagline">
+							<span v-html="parseLabel(menuLabels.items[0].Tagline)"></span>
 						</div>
-						<div class="plot">
-							<span v-if="menuLabels.items[0]" v-html="parseLabel(menuLabels.items[0].Plot)"></span>
+						<div class="plot" v-if="menuLabels.items[0]">
+							<span v-html="parseLabel(menuLabels.items[0].Plot)"></span>
 						</div>
 					</aside>
 					<ul class="items">
-						<li v-for="item in menuLabels.items" :style="'--item_order: '+item.offset+';'" :data-order="item.offset">
-							<span class="icon"><img :src="vfs2uri(item.Icon || item.ActualIcon || item.Thumb)"></img></span>
+						<li v-for="item in menuLabels.items" :style="'--item_order: '+item.offset+';'" :data-order="item.offset" :data-row="item.Row" :data-column="item.Column">
+							<span class="icon"><alt-img :src="vfs2uri(item.Icon || item.ActualIcon || item.Thumb)" :alt-src="item.Icon || item.ActualIcon || item.Thumb"></alt-img></span>
 							<span class="label" v-html="parseLabel(item.Label)"></span>
 							<span class="label2" v-html="parseLabel(item.Label2)"></span>
 						</li>
@@ -392,7 +411,9 @@ export default function ({ get }) {
 					'Thumb',
 					'Plot',
 					'Tagline',
-					'Title'
+					'Title',
+					'Column',
+					'Row'
 				]))(offsets)
 			}
 		}
