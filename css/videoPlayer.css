@@ -83,17 +83,6 @@ body {
 	z-index:1000;
 }
 
-.playingNow {
-	left:0;
-	top:calc(var(--margin_vertical));
-	width:auto;
-	height:var(--overlay_height);
-	padding-left:calc(var(--control_height) / 8 + var(--margin_horizontal));
-	padding-right: calc(var(--overlay_height) * 2 / 3.14);
-	flex-direction:row;
-	align-items: flex-end;
-}
-
 .controls {
 	left:0;
 	bottom:0;
@@ -119,16 +108,13 @@ body {
 }
 
 .volumeControls {
-	left:var(--margin_horizontal);
-	top:calc(var(--margin_vertical) * 2 + var(--overlay_height));
+	left: calc(var(--unit) / 4);
+	top: calc(50% - var(--volume_height) / 2) !important;
 	width:auto;
 	height:var(--volume_height);
-
 	flex-direction:row;
 	flex-wrap:nowrap;
-
-	background-color:var(--bg_overlay);
-
+	background-color:var(--bg_overlay_dark);
 	border-radius:calc(var(--volume_slider_width) / 2 + var(--volume_padding_vertical));
 }
 .volumeControl {
@@ -186,30 +172,27 @@ body {
 	margin-left:var(--spacing);
 }
 
-.playingNow .line1 {
-	font-size:75%;
-}
-
 #videoPlayer.hideStats .stats {
 	display:none;
 }
 
 .volumeControls,
-.playingNow,
 .controls {
 	transition:margin 0.2s;
 }
 
-.volumeControls,
 .playingNow {
+	flex-shrink: 100;
+	width: 40%;
+	flex-grow: 0;
+}
+.volumeControls {
 	margin-left:-100%;
 }
 .controls {
 	margin-bottom:-100%;
 }
 
-#videoPlayer[data-currentwindow="Fullscreen OSD"] .playingNow,
-#videoPlayer[data-currentwindow="Audio visualisation"] .playingNow,
 #videoPlayer[data-currentwindow="Fullscreen OSD"] .controls,
 #videoPlayer[data-currentwindow="Audio visualisation"] .controls,
 #videoPlayer[data-currentwindow="Fullscreen OSD"] .volumeControls,
@@ -230,10 +213,12 @@ body {
 }
 
 .year:not(:empty):before {
+	color:var(--fg_primary);
 	content: "(";
 }
 
 .year:not(:empty):after {
+	color:var(--fg_primary);
 	content: ") ";
 }
 
@@ -249,25 +234,33 @@ body {
 header > *,
 footer > *,
 .menu .info,
-.menu .items {
-	transition:margin 0.2s;
+.menu .fixedlist {
+	transition:margin 0.4s;
 }
 #videoPlayer[data-currentwindow="Fullscreen video"] header > * {
-	margin-top:-100%;
+	display:none;
 }
 #videoPlayer[data-currentwindow="Fullscreen video"] footer > * {
 	margin-bottom:-100%;
 }
+#videoPlayer[data-currentcontrolid="9000"] .menu .info,
 #videoPlayer[data-currentwindow="Fullscreen video"] .menu .info,
 #videoPlayer[data-currentwindow="Fullscreen OSD"] .menu .info,
 #videoPlayer[data-currentwindow="Audio visualisation"] .menu .info {
 	margin-left:-100%;
 }
-#videoPlayer[data-currentwindow="Fullscreen video"] .menu .items,
-#videoPlayer[data-currentwindow="Fullscreen OSD"] .menu .items,
-#videoPlayer[data-currentwindow="Audio visualisation"] .menu .items {
+#videoPlayer[data-currentwindow="Fullscreen video"] .menu .fixedlist,
+#videoPlayer[data-currentwindow="Fullscreen OSD"] .menu .fixedlist,
+#videoPlayer[data-currentwindow="Audio visualisation"] .menu .fixedlist {
 	margin-left:100%;
 }
+#videoPlayer[data-currentwindow="Fullscreen video"] .menu .fixedlist[data-id="9000"],
+#videoPlayer[data-currentwindow="Fullscreen OSD"] .menu .fixedlist[data-id="9000"],
+#videoPlayer[data-currentwindow="Audio visualisation"] .menu .fixedlist[data-id="9000"] { /* Home screen main menu */
+	margin-left:initial;
+	margin-right:-100%;
+}
+
 
 .menu {
 	transition:opacity 0.2s cubic-bezier(0.46, 0.03, 0.52, 0.96);
@@ -283,12 +276,31 @@ footer {
 #videoPlayer[data-currentwindow="Fullscreen video"] footer {
 	opacity:0;
 }
-
+.playingNow {
+	font-size:75%;
+	font-weight:lighter;
+	align-items:flex-end;
+}
+#videoPlayer[data-currentwindow="Fullscreen OSD"] header .playingNow,
+#videoPlayer[data-currentwindow="Fullscreen video"] header .playingNow,
+#videoPlayer[data-currentwindow="Audio visualisation"] header .playingNow {
+	font-size:inherit;
+	align-items:flex-start;
+}
+header .playingNow .title2 {
+	font-size:75%;
+}
+#videoPlayer[data-currentwindow="Fullscreen OSD"] header .playingNow .title2,
+#videoPlayer[data-currentwindow="Fullscreen video"] header .playingNow .title2,
+#videoPlayer[data-currentwindow="Audio visualisation"] header .playingNow .title2 {
+	font-size:60%;
+}
 #videoPlayer[data-currentwindow="Fullscreen OSD"] header .left,
 #videoPlayer[data-currentwindow="Fullscreen video"] header .left,
 #videoPlayer[data-currentwindow="Audio visualisation"] header .left {
-	visibility:hidden;
+	display: none;
 }
+
 .menu {
 	background-color: var(--bg_overlay);
 	justify-content:stretch;
@@ -302,10 +314,20 @@ footer {
 	height:100%;
 	width:30%;
 }
-.items {
+
+.control[data-id="9000"] { /* Home screen main menu */
+	width:30%;
+	left:0;
+	background-color: var(--bg_overlay_darker);
+}
+.fixedlist {
 	width:70%;
-	top:50%;
+	top: 0;
 	left:30%;
+	height: 100%;
+}
+.fixedlist > ul {
+	top: 50%;
 }
 
 .menu > * > * {
@@ -342,7 +364,7 @@ footer {
 header .title > span + span {
 	padding-left:0;
 }
-header .title > span + span:before {
+header .left .title > span + span:before {
 	content:" / ";
 }
 
@@ -363,12 +385,15 @@ header > * > * + * {
 	padding-bottom: 0;
 }
 header .left {
-	flex-shrink:100;
+	flex-shrink: 10;
 	overflow: hidden;
+	width: 50%;
+	flex-grow: 10;
 }
-header .left .title {
+header div {
 	overflow:hidden;
 	text-overflow:ellipsis;
+	max-width: 100%;
 }
 header .right {
 	align-items: flex-end;
@@ -396,6 +421,9 @@ header .finishTime {
 	margin-bottom: 0;
 	text-align: justify;
 }
+.menu .info .plot {
+	white-space:pre-line;
+}
 .menu .info .title {
 	font-weight:bold;
 	line-height: 150%;
@@ -422,7 +450,6 @@ header .finishTime {
 }
 
 .menu ul {
-	flex-grow:100;
 	position: relative;
 }
 
@@ -485,7 +512,7 @@ header .finishTime {
 
 
 
-img[data-alt-src]:not(.fadeIn) {
+img.hideLoading[data-alt-src] {
 	visibility:hidden;
 }
 
@@ -503,4 +530,17 @@ img.fadeIn[data-alt-src] {
 }
 img.fadeIn:not([data-alt-src]) {
 	animation:fadeIn 0.6s;
+}
+
+#videoPlayer .loading {
+	background-color: rgba(0,0,0,0.9);
+	width:100%;
+	height:100%;
+	z-index:100000;
+	display:none;
+}
+#videoPlayer[data-currentwindow=""][data-currentcontrol=""] .loading {
+	display:flex;
+	justify-content:center;
+	align-items:center;
 }

@@ -1,17 +1,8 @@
-/* Various useful functions */
+/**
+ * Various useful functions for functional programming in js
+ */
 
 
-// Promise that resolves when the DOM is loaded
-// Credit to Jake Archibald
-// https://github.com/jakearchibald/svgomg/blob/master/src/js/page/utils.js#L7
-export const ready = () => new Promise(resolve => {
-	const check = () => {
-		if (document.readyState !== 'loading')
-			resolve()
-	}
-	document.addEventListener('readystatechange', check)
-	check()
-})
 
 export const compose = f => g => x => f(g(x))
 
@@ -52,10 +43,10 @@ export const is = {
 export const If = cond => (t=id.func, f=id.none) => x => ( cond(x) ? t(x) : f(x) )
 Object.assign(If, mapObject(If)(is))
 
-export const prefix = a => b => ([ a, b ]).join('')
-export const suffix = a => b => ([ b, a ]).join('')
-export const toString = x => ''+x
-export const toNumeric = x => 0+x
 
-export const waitSeconds = t => x => new Promise(resolve => { window.setTimeout(() => resolve(x), 1000*t) })
-export const waitAnimationFrame = x =>  new Promise(resolve => { window.requestAnimationFrame(() => resolve(x)) })
+export const range = (from, to) => {
+	const a = [];
+	for (let i = from; i < to+1; i++)
+		a.push(i);
+	return a;
+};

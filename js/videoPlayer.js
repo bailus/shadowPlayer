@@ -3,179 +3,142 @@ import VueTouch from "vue-touch"
 import VueSlider from "vue-slider-component"
 import VueIcon from "vue-icon-component"
 
+import AltImg from "./vue-components/altimg.js"
+import { FixedList, itemLabelNames } from "./vue-components/fixedlist.js"
+import { InfoBox, infoboxLabelNames } from "./vue-components/infobox.js"
+
+import {} from "./stringFormat.js"
+
 import {
 	If, is, id,
-	bindArray, mapArray, flattenArray,
-	waitSeconds,
+	bindArray, mapArray,
+	range
+} from "./functionalFunctions.js"
+
+import {
+	markup2html,
+	image2uri,
+	timeObjToSeconds,
+	secondsToTimeObj,
+	seconds2shortstring,
 	prefix, suffix
-} from "./util.js"
+} from "./stringFormat.js"
 
+import {
+	waitSeconds
+} from "./browserPromises.js"
 
-export const prefixImage = prefix('image://')
-export const prefixZero = prefix('0')
+Vue.use(VueTouch);
+VueTouch.registerCustomEvent('dbltap', { type: 'tap', taps: 2 });
 
-export const leadingZero = If.numeric(If.lessThanTen(prefixZero, toString), id.func)
+const templateLabelNames = [];
+const getLabel = label => {
+	if (!templateLabelNames.includes(label))
+		templateLabelNames.push(label);
+	return `menuLabels['${ label }']`
+};
 
-export function seconds2shortstring (seconds) {
-	const format = n => (n < 10 ? '0' : '')+Math.floor(n)
+let media2uri = id.func
 
-	const s = Math.abs(seconds)
-	const h = s >= 3600 && Math.floor(s/3600)
-	const mm = format((s%3600)/60)
-	const ss = format(s%60)
-
-	return (seconds < 0 ? '-' : '') +
-			(h === false ? '' : `${h}:`) + `${mm}:${ss}`
-}
-export const timeObjToSeconds = o => ((((o.hours*60) + o.minutes)*60) + o.seconds)+(o.milliseconds/1e3)
-export const secondsToTimeObj = s => ({ 'hours': Math.floor(s/3600), 'minutes': Math.floor(s/60)%60, 'seconds': s%60 })
-
-
-Vue.use(VueTouch)
-VueTouch.registerCustomEvent('dbltap', { type: 'tap', taps: 2 })
-
-const labelStyles = {
-	'COLOR': 'color:$1',
-	'B': 'font-weight:bold'
-}
-const parseLabel = l => {
-	Object.keys(labelStyles).forEach(key => {
-		l = l.replace(new RegExp(`\\[${ key } ?(.*?)\\]`, 'gi'), `<span style="${ labelStyles[key] }">`)
-		l = l.replace(new RegExp(`\\[\/${ key }\\]`, 'gi'), '</span>')
-	})
-	return l
-}
-
-export default function ({ get }) {
-	const getActivePlayer = () => get({ 'method': 'Player.GetActivePlayers' }).then(players => players[0])
-
-	const vfs2uri = If.notEmpty((vfs, type) => {
-		let vfsUrl = undefined
-		let isRelative = false
-		try {
-			vfsUrl = new URL(vfs)
-		} catch(e) { //relative URL
-			return new URL(vfs, new URL('skin.estuary/media/', window.location.href).href).href
-		}
-
-		const vfsProtocol = vfsUrl.protocol
-		
-		let path = '/vfs/'
-		if (vfsProtocol === 'file:' || vfsProtocol === 'image:' || vfsProtocol === 'http:' || vfsProtocol === 'resource:' || vfsProtocol === 'special:') {
-			path = '/image/'
-		}
-
-		return new URL(encodeURIComponent(vfs), new URL(path, window.location.href).href).href
-	})
-
-	const art2uri = vfs2uri
-	const icon2uri = vfs2uri
-
-	const requestAnimationFrame = f => window.requestAnimationFrame(() => window.requestAnimationFrame(f)) //needed for fadeIn animation
-
-	Vue.component('alt-img', Vue.extend({
-		props: [ 'src', 'altSrc' ],
-		methods: {
-			onError: e => {
-				const dataset = e.target.dataset
-				if (dataset.altSrc !== undefined && dataset.altSrc !== '') {
-					e.target.src = dataset.altSrc
-					if (dataset.altSrc !== e.target.src) {
-						dataset.altSrc = e.target.src
-					} else {
-						dataset.altSrc = ''
-					}
-				}
-			},
-			onLoad: e => {
-				const dataset = e.target.dataset
-				requestAnimationFrame(() => {
-					delete dataset.altSrc
-				})
+const vm = new Vue({
+	el: '#videoPlayer',
+	data: {
+		labels: {},
+		stats: {},
+		hideStats: true,
+		currentTime: 0,
+		duration: 0,
+		speed: 0,
+		stopped: true,
+		remoteVolume:100,
+		remoteMute:false,
+		localVolume:100,
+		localMute:true,
+		menuLabels:{items:[]}
+	},
+	components: {
+		'slider': VueSlider,
+		'icon': VueIcon,
+		'alt-img': AltImg,
+		'fixedlist': FixedList,
+		'infobox': InfoBox
+	},
+	methods: {
+		action: a => get({
+			method: 'Input.ExecuteAction',
+			params: {
+				'action': a
 			}
-		},
-		template: `<img :src.sync="src" :data-alt-src.sync="altSrc" @error="onError" @load="onLoad"></img>`
-	}))
-
-	const vm = new Vue({
-		el: '#videoPlayer',
-		data: {
-			labels: {},
-			stats: {},
-			hideStats: true,
-			currentTime: 0,
-			duration: 0,
-			speed: 0,
-			stopped: true,
-			remoteVolume:100,
-			remoteMute:false,
-			localVolume:100,
-			localMute:true,
-			menuLabels:{items:[]}
-		},
-		components: {
-			slider: VueSlider,
-			icon: VueIcon
-		},
-		methods: {
-			action: a => get({
-				method: 'Input.ExecuteAction',
+		}),
+		seek: s => getActivePlayer().then(({ playerid }) => get({
+			method: 'Player.Seek',
+			params: {
+				'playerid': playerid,
+				'value': { 'time': secondsToTimeObj(s) }
+			}
+		})),
+		setRemoteVolume: async v => {
+			vm.remoteVolume = await get({
+				method: 'Application.SetVolume',
 				params: {
-					'action': a
+					'volume': v
 				}
-			}),
-			seek: s => getActivePlayer().then(({ playerid }) => get({
-				method: 'Player.Seek',
-				params: {
-					'playerid': playerid,
-					'value': { 'time': secondsToTimeObj(s) }
-				}
-			})),
-			setRemoteVolume: async v => {
-				vm.remoteVolume = await get({
-					method: 'Application.SetVolume',
-					params: {
-						'volume': v
-					}
-				})
-			},
-			setLocalVolume: v => {
-				videoElem.volume = v/100
-			},
-			remoteMuteToggle: async () => {
-				vm.remoteMute = await get({
-					method: 'Application.SetMute',
-					params: {
-						'mute': !vm.remoteMute
-					}
-				})
-			},
-			seconds2shortstring: seconds2shortstring,
-			log: x => { console.log(x); return x },
-			suffix: suffix,
-			toggle: key => () => { vm[key] = !vm[key]; return vm[key] },
-			vfs2uri: vfs2uri,
-			art2uri: art2uri,
-			icon2uri: icon2uri,
-			parseLabel: parseLabel
+			})
 		},
-		template: `<div id="videoPlayer"
-					:data-currentWindow="menuLabels.system['System.CurrentWindow']"
+		setLocalVolume: v => {
+			videoElem.volume = v/100
+		},
+		remoteMuteToggle: async () => {
+			vm.remoteMute = await get({
+				method: 'Application.SetMute',
+				params: {
+					'mute': !vm.remoteMute
+				}
+			})
+		},
+		seconds2shortstring: seconds2shortstring,
+		log: x => { console.log(x); return x },
+		suffix: suffix,
+		toggle: key => () => { vm[key] = !vm[key]; return vm[key] },
+		image2uri: image2uri,
+		markup2html: markup2html,
+	},
+	template: `
+			<div id="videoPlayer"
+					:data-currentWindow="${ getLabel('System.CurrentWindow') }"
+					:data-currentControl="${ getLabel('System.CurrentControl') }"
+					:data-currentControlId="${ getLabel('System.CurrentControlId') }"
 					:class="{ hideStats: hideStats, stopped: stopped }">
+
+				<section class="loading">
+					
+				</section>
 
 				<header>
 					<section class="left">
 						<div class="title">
-							<span class="currentWindow" v-if="menuLabels.system['System.CurrentWindow']">{{ menuLabels.system['System.CurrentWindow'] }}</span>
-							<span class="folderName" v-if="menuLabels['Container.FolderName']">{{ menuLabels['Container.FolderName'] }}</span>
+							<span class="currentWindow" v-if="${ getLabel('System.CurrentWindow') }">{{ ${ getLabel('System.CurrentWindow') } }}</span>
+							<span class="folderName" v-if="${ getLabel('Container.FolderName') }" v-html="markup2html(${ getLabel('Container.FolderName') })"></span>
 						</div>
 						<div class="title2">
-							<span class="sort">{{ menuLabels['Container.SortMethod'] }}</span>
+							<span class="sort">{{ ${ getLabel('Container.SortMethod') } }}</span>
+						</div>
+					</section>
+					<section class="playingNow" v-show="!stopped">
+						<div class="title">
+							<span class="artist">{{ ${ getLabel('MusicPlayer.Artist') } }}</span>
+							<span class="label">{{ ${ getLabel('Player.Title') } }}</span>
+							<span class="year">{{ ${ getLabel('VideoPlayer.Year') } || ${ getLabel('MusicPlayer.Year') } }}</span>
+						</div>
+						<div class="title2">
+							<span class="productionCode">{{ ${ getLabel('VideoPlayer.ProductionCode') } }}</span>
+							<span class="show">{{ ${ getLabel('VideoPlayer.TVShowTitle') } }}</span>
+							<span class="album">{{ ${ getLabel('MusicPlayer.Album') } }}</span>
 						</div>
 					</section>
 					<section class="right">
-						<div class="clockTime">{{ labels['System.Time'] }}</div>
-						<div class="finishTime" v-show="!stopped">{{ labels['Player.FinishTime'] }}</div>
+						<div class="clockTime">{{ ${ getLabel('System.Time') } }}</div>
+						<div class="finishTime" v-show="!stopped">{{ ${ getLabel('Player.FinishTime') } }}</div>
 					</section>
 				</header>
 
@@ -196,21 +159,6 @@ export default function ({ get }) {
 						<dt>Temperature</dt>
 						<dd>{{ stats.temperature }}%</dd>
 					</dl>
-
-					<div class="playingNow" v-show="!stopped">
-						<div class="text">
-							<div class="line1">
-								<span class="show">{{ labels['VideoPlayer.TVShowTitle'] }}</span>
-								<span class="album">{{ labels['MusicPlayer.Album'] }}</span>
-								<span class="year">{{ labels['VideoPlayer.Year'] || labels['MusicPlayer.Year'] }}</span>
-							</div>
-							<div class="line2">
-								<span class="productionCode">{{ labels['VideoPlayer.ProductionCode'] }}</span>
-								<span class="artist">{{ labels['MusicPlayer.Artist'] }}</span>
-								<span class="title">{{ labels['Player.Title'] }}</span>
-							</div>
-						</div>
-					</div>
 
 					<div class="controls" v-show="!stopped">
 						<div class="progressBar">
@@ -261,39 +209,38 @@ export default function ({ get }) {
 				</section>
 
 				<section class="menu" :data-view="menuLabels.ViewMode">
-					<aside class="info">
-						<div class="thumb">
-							<alt-img :src="vfs2uri(menuLabels.items[0].Icon || menuLabels.items[0].ActualIcon || menuLabels.items[0].Thumb)" :altSrc="menuLabels.items[0].Icon || menuLabels.items[0].ActualIcon || menuLabels.items[0].Thumb" v-if="menuLabels.items[0] !== undefined" class="fadeIn"></alt-img>
-						</div>
-						<div class="title" v-if="menuLabels.items[0]">
-							<span v-html="parseLabel(menuLabels.items[0].Title || menuLabels.items[0].Label)"></span>
-						</div>
-						<div class="tagline" v-if="menuLabels.items[0] && menuLabels.items[0].Tagline">
-							<span v-html="parseLabel(menuLabels.items[0].Tagline)"></span>
-						</div>
-						<div class="plot" v-if="menuLabels.items[0]">
-							<span v-html="parseLabel(menuLabels.items[0].Plot)"></span>
-						</div>
-					</aside>
-					<ul class="items">
-						<li v-for="item in menuLabels.items" :style="'--item_order: '+item.offset+';'" :data-order="item.offset" :data-row="item.Row" :data-column="item.Column">
-							<span class="icon"><alt-img :src="vfs2uri(item.Icon || item.ActualIcon || item.Thumb)" :alt-src="item.Icon || item.ActualIcon || item.Thumb"></alt-img></span>
-							<span class="label" v-html="parseLabel(item.Label)"></span>
-							<span class="label2" v-html="parseLabel(item.Label2)"></span>
-						</li>
-					</ul>
+					<infobox :item="menuLabels.items[0]"></infobox>
+					<fixedlist :id="${ getLabel('System.CurrentControlId') }" :items="menuLabels.items"></fixedlist>
 				</section>
 
 				<footer>
-					<div class="details">
-						
-					</div>
 				</footer>
 
 			</div>`
-	})
+});
 
-	let videoElem = document.getElementById('xbmc-video')
+
+
+export default function ({ get }) {
+	const getActivePlayer = () => get({ 'method': 'Player.GetActivePlayers' }).then(players => players[0]);
+
+	media2uri = async path => {
+		try {
+			const url = new URL(path)
+			if (url.protocol === 'http:' || url.protocol === 'https:')
+				return path
+		} catch(e) {}
+
+		const { details } = await get({
+			'method': 'Files.PrepareDownload',
+			'params': {
+				'path': path
+			}
+		})
+		return prefix('/')(details.path)
+	}
+
+	let videoElem = document.getElementById('xbmc-video');
 
 
 	const getLabels = () => get({
@@ -316,17 +263,12 @@ export default function ({ get }) {
 				'VideoPlayer.Year'
 			]
 		}
-	}).then(labels => {
-		labels['VideoPlayer.ProductionCode'] = ([
-				leadingZero(labels['VideoPlayer.Season']),
-				leadingZero(labels['VideoPlayer.Episode'])
-			]).filter(x => x).join('x')
+	}).then(async labels => {
+		labels['Player.File'] = await media2uri(labels['Player.Filenameandpath']);
+		labels['Player.Thumb'] = image2uri(labels['Player.Art(thumb)']);
 
-		labels['Player.File'] = vfs2uri(labels['Player.Filenameandpath'])
-		labels['Player.Thumb'] = art2uri(labels['Player.Art(thumb)'])
-
-		vm.labels = labels
-	})
+		vm.labels = labels;
+	});
 
 	const getVolume = async function() {
 		let o = await get({
@@ -334,10 +276,10 @@ export default function ({ get }) {
 			'params': {
 				'properties': [ 'volume', 'muted' ]
 			}
-		})
-		vm.remoteVolume = o.volume
-		vm.remoteMute = o.muted
-	}
+		});
+		vm.remoteVolume = o.volume;
+		vm.remoteMute = o.muted;
+	};
 
 
 
@@ -350,82 +292,33 @@ export default function ({ get }) {
 				'time', 'speed'
 			]
 		}
-	})
-
+	});
 
 	const getContainer = (containerId='') => get({
 		'method': 'XBMC.GetInfoLabels',
 		'params': {
-			'labels': mapArray(prefix('Container.'))([
-				'Content',
-				'FolderPath',
-				'FolderName',
-				'ViewMode',
-				'SortMethod',
-				'SortOrder',
-				'PluginName',
-				'PluginCategory',
-				'ShowPlot',
-				'ShowTitle',
-				'Property(addoncategory)',
-				'Property(reponame)',
-				'ViewCount'
-			]).
-			concat(mapArray(prefix(`Container(${ containerId  }).`))([
-				'NumPages',
-				'NumItems',
-				'CurrentPage',
-				'CurrentItem',
-				'Position',
-				'Column',
-				'Row',
-				'Totaltime',
-				'TotalWatched',
-				'TotalUnWatched'
-			])).
-			concat(mapArray(prefix(`Container().`))([
-				'NumPages',
-				'NumItems',
-				'CurrentPage',
-				'CurrentItem',
-				'Position',
-				'Column',
-				'Row',
-				'Totaltime',
-				'TotalWatched',
-				'TotalUnWatched',
-				'FanArt'
-			]))
+			'labels': [].
+					concat(mapArray(prefix(`Container(${ containerId  }).`))([
+						'NumItems',
+						'CurrentItem'
+					])).
+					concat(mapArray(prefix(`Container().`))([
+						'NumItems',
+						'CurrentItem'
+					])).
+					concat(templateLabelNames)
 		}
-	})
+	});
 
 	const getListItems = (containerId='') => offsets => {
 		const o = {
 			'method': 'XBMC.GetInfoLabels',
 			'params': {
-			'labels': bindArray(offset => mapArray(prefix(`Container(${ containerId  }).ListItem(${ offset }).`))([
-					'Label',
-					'Label2',
-					'Icon',
-					'ActualIcon',
-					'Thumb',
-					'Plot',
-					'Tagline',
-					'Title',
-					'Column',
-					'Row'
-				]))(offsets)
+			'labels': bindArray(offset => mapArray(prefix(`Container(${ containerId  }).ListItem(${ offset }).`))(itemLabelNames.concat(infoboxLabelNames)))(offsets)
 			}
-		}
-		return get(o)
-	}
-
-	const range = (from, to) => {
-		const a = []
-		for (let i = from; i < to+1; i++)
-			a.push(i)
-		return a
-	}
+		};
+		return get(o);
+	};
 
 	const getSystemLabels = () => get({
 		'method': 'XBMC.GetInfoLabels',
@@ -436,7 +329,7 @@ export default function ({ get }) {
 				'System.CurrentControlId'
 			]
 		}
-	})
+	});
 
 	const getBooleans = () => get({
 		'method': 'XBMC.GetInfoBooleans',
@@ -447,118 +340,118 @@ export default function ({ get }) {
 				'Container.HasParent'
 			]
 		}
-	})
+	});
 
 
 	const getContainerItems = async (n=7) => {
-		const booleans = await getBooleans()
-		const system = await getSystemLabels()
-		let controlId = system['System.CurrentControlId']
-		const container = await getContainer(controlId)
+		const booleans = await getBooleans();
+		const system = await getSystemLabels();
+		let controlId = system['System.CurrentControlId'];
+		const container = await getContainer(controlId);
 
 		if (container[`Container(${ controlId }).CurrentItem`] === '')
-			controlId = ''
+			controlId = '';
 
-		const pos = parseInt(container[`Container(${ controlId }).CurrentItem`]) || parseInt(container[`Container().CurrentItem`])
-		const numItems = parseInt(container[`Container(${ controlId }).NumItems`]) || parseInt(container[`Container().NumItems`])
-		const h = booleans['Container.HasParent'] ? 0 : 1
-		container.offsets = range( Math.max(-pos+h, -n), Math.min(numItems-pos, n) )
+		const pos = parseInt(container[`Container(${ controlId }).CurrentItem`]) || parseInt(container[`Container().CurrentItem`]);
+		const numItems = parseInt(container[`Container(${ controlId }).NumItems`]) || parseInt(container[`Container().NumItems`]);
+		const h = booleans['Container.HasParent'] ? 0 : 1;
+		container.offsets = range( Math.max(-pos+h, -n), Math.min(numItems-pos, n) );
 
-		let itemLabels = []
+		let itemLabels = [];
 		if (container.offsets.length > 0)
-			itemLabels = await getListItems(controlId)(container.offsets)
+			itemLabels = await getListItems(controlId)(container.offsets);
 		
-		const items = {}
+		const items = {};
 		Object.keys(itemLabels).forEach(key => {
-			const offset = key.match(/.*\(.*\).*\((.*)\)/)[1]
+			const offset = key.match(/.*\(.*\).*\((.*)\)/)[1];
 			if (items[offset] === undefined)
-				items[offset] = {}
-			const k = key.split('.')[2]
-			const value = itemLabels[key]
-			items[offset][k] = value
+				items[offset] = {};
+			const k = key.split('.')[2];
+			const value = itemLabels[key];
+			items[offset][k] = value;
 		})
 		Object.keys(items).forEach(offset => {
-			items[offset].offset = offset
+			items[offset].offset = offset;
 		})
-		container.itemLabels = itemLabels
-		container.items = items
-		container.system = system
-		container.booleans = booleans
+		container.itemLabels = itemLabels;
+		container.items = items;
+		container.system = system;
+		container.booleans = booleans;
 
-		vm.menuLabels = container
-		return container
+		vm.menuLabels = container;
+		return container;
 	}
 
 
-	const maxPlaybackRate = 128
-	const minPlaybackRate = 1/16
-	let timeStep = 1
-	let temperature = 1
-	let lastTemperature = 1
-	let lastPlayerTime = 0
-	let lastTime = 0
-	let lastLag = id.none
+	const maxPlaybackRate = 128;
+	const minPlaybackRate = 1/16;
+	let timeStep = 1;
+	let temperature = 1;
+	let lastTemperature = 1;
+	let lastPlayerTime = 0;
+	let lastTime = 0;
+	let lastLag = id.none;
 	const updateTime = ({ time, speed }, startTime) => {
 
-		let localPlaybackRate = If.numeric(id.func, id.mult)(videoElem.playbackRate)
-		let localTime = videoElem.currentTime
+		let localPlaybackRate = If.numeric(id.func, id.mult)(videoElem.playbackRate);
+		let localTime = videoElem.currentTime;
 		if (!is.numeric(localTime)) {
 			return
 		}
 
-		const lag = (localTime - startTime) / 2
-		const remoteTime = timeObjToSeconds(time) + lag
-		if (lastLag === id.none) lastLag = lag
+		const lag = (localTime - startTime) / 2;
+		const remoteTime = timeObjToSeconds(time) + lag;
+		if (lastLag === id.none) lastLag = lag;
 
-		let delta = remoteTime - localTime
+		let delta = remoteTime - localTime;
 
-		const jitter = (lag - lastLag)/lastLag
+		const jitter = (lag - lastLag)/lastLag;
 
-		temperature = Math.pow(Math.max(0, Math.min(1, 1 - (1/Math.abs(delta*512)))), 4)
-		temperature = Math.abs(1 - (0.9*(1-temperature)))
-		temperature = (7*lastTemperature + temperature) / 8
+		temperature = Math.pow(Math.max(0, Math.min(1, 1 - (1/Math.abs(delta*512)))), 4);
+		temperature = Math.abs(1 - (0.9*(1-temperature)));
+		temperature = (7*lastTemperature + temperature) / 8;
 
-		const maxJitter = temperature + 0.2
+		const maxJitter = temperature + 0.2;
 
-		timeStep = 1/4
-		let playbackRate = (2*timeStep) / ((-delta*temperature) + (2*timeStep)) * speed
+		timeStep = 1/4;
+		let playbackRate = (2*timeStep) / ((-delta*temperature) + (2*timeStep)) * speed;
 
 		if (jitter > maxJitter || jitter < -maxJitter) {
 			// bad network - don't re-sync
-			videoElem.playbackRate = speed
+			videoElem.playbackRate = speed;
 			delta = id.none
 		}
 		else if (!is.numeric(playbackRate) || playbackRate >= maxPlaybackRate || playbackRate <= minPlaybackRate) {
 			// quick re-sync
-			videoElem.currentTime = localTime += delta
-			videoElem.playbackRate = speed
-			console.log(`jump to ${ localTime } seconds`)
-			timeStep = 2
-			temperature = 1
+			videoElem.currentTime = localTime += delta;
+			videoElem.playbackRate = speed;
+			console.log(`jump to ${ localTime } seconds`);
+			timeStep = 2;
+			temperature = 1;
 		}
 		else if (is.numeric(playbackRate)) {
 			// smooth re-sync
 
-			temperature = temperature * 0.9
+			temperature = temperature * 0.9;
 
-			videoElem.playbackRate = playbackRate
+			videoElem.playbackRate = playbackRate;
 		}
 
-		vm.stats.delta = Math.round(delta * 1e6) / 1e3
-		vm.stats.lag = Math.round(lastLag * 2e6) / 1e3
-		vm.stats.jitter = Math.round(jitter * 1e3) / 1e3
-		vm.stats.temperature = Math.round(temperature * 100)
+		vm.stats.delta = Math.round(delta * 1e6) / 1e3;
+		vm.stats.lag = Math.round(lastLag * 2e6) / 1e3;
+		vm.stats.jitter = Math.round(jitter * 1e3) / 1e3;
+		vm.stats.temperature = Math.round(temperature * 100);
 
-		vm.currentTime = Math.round(localTime)
-		vm.duration = Math.round(videoElem.duration)
-		vm.progress = vm.currentTime / vm.duration
-		vm.speed = speed
+		vm.currentTime = Math.round(localTime);
+		vm.duration = Math.round(videoElem.duration);
+		vm.progress = vm.currentTime / vm.duration;
+		vm.speed = speed;
 
-		lastTime = localTime
-		lastPlayerTime = remoteTime
-		lastLag = (7*lastLag + lag) / 8
+		lastTime = localTime;
+		lastPlayerTime = remoteTime;
+		lastLag = (7*lastLag + lag) / 8;
 		lastTemperature = temperature
-	}
+	};
 
 
 	// Game Loops
@@ -568,34 +461,34 @@ export default function ({ get }) {
 		getLabels().
 		then(getActivePlayer).
 		then(If.object(player => {
-			videoElem = document.getElementById('xbmc-video')
-			const startTime = videoElem.currentTime
+			videoElem = document.getElementById('xbmc-video');
+			const startTime = videoElem.currentTime;
 			getTime(player).
 				then(If.defined(properties => {
-					updateTime(properties, startTime)
-				}))
-			vm.stopped = false
+					updateTime(properties, startTime);
+				}));
+			vm.stopped = false;
 		}, () => {
 			//nothing playing
-			vm.src = ''
-			vm.stats = {}
-			vm.currentTime = 0
-			vm.duration = 0
-			vm.src = ''
-			vm.speed = 0
-			vm.stopped = true
-			videoElem.playbackRate = 0
-			timeStep = 1/2
+			vm.src = '';
+			vm.stats = {};
+			vm.currentTime = 0;
+			vm.duration = 0;
+			vm.src = '';
+			vm.speed = 0;
+			vm.stopped = true;
+			videoElem.playbackRate = 0;
+			timeStep = 1/2;
 		})).
 		then(success => {
-				waitSeconds(timeStep)().then(loop)
+				waitSeconds(timeStep)().then(loop);
 			},
 			error => {
-				console.error(error)
-				waitSeconds(1)().then(loop)
-			})
-	}
-	loop()
+				console.error(error);
+				waitSeconds(1)().then(loop);
+			});
+	};
+	loop();
 
 
 	// The other loop
@@ -605,13 +498,13 @@ export default function ({ get }) {
 			getContainerItems()
 		]).
 		then(success => {
-				waitSeconds(0.1)().then(menuLoop)
+				waitSeconds(0.1)().then(menuLoop);
 			},
 			error => {
-				console.error(error)
-				waitSeconds(1)().then(menuLoop)
+				console.error(error);
+				waitSeconds(1)().then(menuLoop);
 			})
-	}
-	menuLoop()
+	};
+	menuLoop();
 
 }

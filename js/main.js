@@ -1,4 +1,4 @@
-import { ready } from './util.js'
+import { ready } from './browserPromises.js'
 import XBMC from './xbmc.js'
 import VideoPlayer from './videoPlayer.js'
 
@@ -18,7 +18,6 @@ ready().then(function () { //on document load
 	const connectToKodi =
 		XBMC(window.location.host)
 		.catch(e => error({ details: [ 'Could not connect to Kodi', e ] }))
-
 
 	connectToKodi.then(VideoPlayer)
 
